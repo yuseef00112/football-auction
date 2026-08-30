@@ -32,6 +32,7 @@ const PLAYERS=[{"id":1,"name":"Kylian Mbappe","position":"ST","club":"Real Madri
 const userParams=new URLSearchParams(location.search);const USER_NAME=userParams.get("name")||localStorage.getItem("footballAuctionName")||"لاعب";const USER_PHOTO=userParams.get("photo")||localStorage.getItem("footballAuctionPhoto")||"";const PROFILE_ID=userParams.get("profileId")||USER_NAME;let selectedBidAmount=1,lastAuctionPlayerId=null;
 function show(id){for(const x of ["home","lobby","game","result"])document.getElementById(x).classList.toggle("hidden",x!==id)}
 function goHome(){document.getElementById("roundOverlay").classList.add("hidden");document.getElementById("simulationOverlay").classList.add("hidden");document.getElementById("replayOverlay").classList.add("hidden");clearInterval(timerHandle);state=null;show("home");document.getElementById("roomPill").textContent="غير متصل";try{ws&&ws.close()}catch(e){}}
+function confirmOpponentLeft(){document.getElementById("opponentLeftOverlay").classList.add("hidden");goHome()}
 function showHomePage(page){["main","profile","ranking"].forEach(p=>document.getElementById("home"+p[0].toUpperCase()+p.slice(1)).classList.toggle("hidden",p!==page));if(page==="profile")send({type:"getProfile",profileId:PROFILE_ID,name:USER_NAME});if(page==="ranking")send({type:"getLeaderboard"})}
 function showJoin(){document.getElementById("joinBox").classList.remove("hidden")}
 function createRoom(teamSize,budget){connect({type:"create",teamSize,budget,name:USER_NAME,photo:USER_PHOTO,profileId:PROFILE_ID})}
@@ -59,6 +60,14 @@ function handle(m){
      document.getElementById("replayText").textContent="تم إرسال طلب مباراة أخرى. في انتظار موافقة اللاعب الثاني.";
      buttons.classList.add("hidden");wait.classList.remove("hidden");
    }
+ }
+ if(m.type==="opponentLeft"){
+   document.getElementById("roundOverlay").classList.add("hidden");
+   document.getElementById("simulationOverlay").classList.add("hidden");
+   document.getElementById("replayOverlay").classList.add("hidden");
+   clearInterval(timerHandle);clearInterval(window.simTimer);
+   document.getElementById("opponentLeftText").textContent=m.message||"غادر خصمك الغرفة.";
+   document.getElementById("opponentLeftOverlay").classList.remove("hidden");
  }
  if(m.type==="returnHome"){
    document.getElementById("roundOverlay").classList.add("hidden");
@@ -143,4 +152,6 @@ function renderProfile(p){document.getElementById("profileName").textContent=p.n
 renderProfile({name:USER_NAME,photo:USER_PHOTO});
 
 window.addEventListener("load",()=>{setTimeout(()=>connect({type:"browse"}),50)});
-</script></body></html>
+</script>
+<div id="opponentLeftOverlay" class="roundOverlay hidden"><div class="roundPanel" style="max-width:430px"><h2>⚠️ الخصم غادر</h2><p id="opponentLeftText" class="muted">غادر خصمك الغرفة.</p><button class="primary" onclick="confirmOpponentLeft()">موافق</button></div></div>
+</body></html>
