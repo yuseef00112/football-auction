@@ -14,34 +14,7 @@ const category={GK:"حراسة",RB:"دفاع",CB:"دفاع",LB:"دفاع",CDM:"�
 const aliases={"Kylian Mbappe":"Kylian Mbappé","Vinicius Junior":"Vinícius Júnior","Mohamed Salah":"Mohamed Salah","Pele":"Pelé","Kaka":"Kaká"};
 const mime={".html":"text/html; charset=utf-8",".js":"text/javascript",".css":"text/css",".json":"application/json",".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".svg":"image/svg+xml"};
 function roomCode(){let s="";do{s=Math.random().toString(36).slice(2,6).toUpperCase()}while(rooms.has(s));return s}
-function publicState(r){
-  const pos=(r.roundPositions||roundPositions)[r.round-1];
-  return {
-    phase:r.phase,
-    round:r.round,
-    totalRounds:r.totalRounds||11,
-    bid:r.bid,
-    highest:r.highest,
-    turn:r.turn||null,
-    endsAt:r.endsAt,
-    current:r.current,
-    bids:r.bids,
-    roundPosition:pos,
-    roundLabel:category[pos],
-    mode:r.mode,
-    players:Object.fromEntries([...r.players].map(([id,p])=>{
-      const teamIds=Array.isArray(p.team)?p.team:[];
-      const teamPlayers=teamIds.map(playerId=>players.find(x=>x.id===playerId)).filter(Boolean);
-      return [id,{
-        name:p.name,
-        photo:p.photo||"",
-        budget:p.budget,
-        team:teamIds,
-        teamPlayers
-      }];
-    }))
-  };
-}
+function publicState(r){const pos=(r.roundPositions||roundPositions)[r.round-1];return {phase:r.phase,round:r.round,totalRounds:r.totalRounds||11,bid:r.bid,highest:r.highest,turn:r.turn||null,endsAt:r.endsAt,current:r.current,bids:r.bids,roundPosition:pos,roundLabel:category[pos],mode:r.mode,players:Object.fromEntries([...r.players].map(([id,p])=>[id,{name:p.name,photo:p.photo||"",budget:p.budget,team:p.team}]))}}
 function broadcast(r,msg){for(const c of r.clients)if(c.readyState===1)c.send(JSON.stringify(msg))}
 function pickForPosition(r,pos){const available=players.filter(p=>!r.used.has(p.id)&&p.position===pos);if(!available.length)return null;const weights=available.map(p=>p.tier==="Legend"?.45:p.tier==="Elite"?1:p.tier==="Strong"?1.35:1.6);let total=weights.reduce((a,b)=>a+b,0),x=Math.random()*total;for(let i=0;i<available.length;i++){x-=weights[i];if(x<=0)return available[i]}return available[0]}
 function startRound(r){const pos=(r.roundPositions||roundPositions)[r.round-1],p=pickForPosition(r,pos);if(!p){finishGame(r);return}r.used.add(p.id);r.current=p;r.bid=1;r.highest=null;r.bids=[];r.endsAt=Date.now()+20000;r.skipUsed=new Set();const ids=[...r.players.keys()].filter(x=>(r.players.get(x)?.budget||0)>=1);if(!ids.length){finishRound(r);return}r.turn=ids[Math.floor(Math.random()*ids.length)];broadcast(r,{type:"state",state:publicState(r)});clearTimeout(r.timer);r.timer=setTimeout(()=>finishRound(r),20100)}
@@ -74,8 +47,7 @@ function finishRound(r){
     replacement:replacement?{player:replacement,reason:"skip"}:null,
     price:winner?r.bid:0,winnerName:winner?.name||"—",loserName:loser?.name||"—"
   };
-  // Send the updated squads immediately so both clients refresh their "My Team" panel.
-  broadcast(r,{type:"roundEnd",...summary,state:publicState(r)});
+  broadcast(r,{type:"roundEnd",...summary});
   r.round++;
   if(r.round>(r.totalRounds||11)){
     // Keep the final auction-result screen visible for the same 4-second pause,
@@ -193,24 +165,7 @@ function finishGame(r){
   broadcast(r,{type:"leaderboard",players:leaderboard()});
   broadcast(r,{type:"result",result:{
     score:`${ps[0].name} ${ga} — ${gb} ${ps[1].name}`,
-    log:fullLog,
-    goals:events,
-    teams:{
-      a:{
-        name:ps[0].name,
-        photo:ps[0].photo||"",
-        budget:ps[0].budget,
-        team:Array.isArray(ps[0].team)?ps[0].team:[],
-        teamPlayers:arrA
-      },
-      b:{
-        name:ps[1].name,
-        photo:ps[1].photo||"",
-        budget:ps[1].budget,
-        team:Array.isArray(ps[1].team)?ps[1].team:[],
-        teamPlayers:arrB
-      }
-    },
+    log:fullLog,goals:events,teams:{a:ps[0],b:ps[1]},
     ai:{strengthA,strengthB,xgA,xgB,possessionA,possessionB}
   }});
 }
@@ -321,4 +276,3 @@ wss.on("connection",ws=>{
   });
 });
 server.listen(PORT,()=>console.log("Yousef Games — Football Auction running on port "+PORT));
-
