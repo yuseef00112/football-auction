@@ -8,7 +8,7 @@
 <section id="home" class="panel"><h2>🏆 Football Auction</h2><p class="muted">مزاد كروي بين لاعبين فقط — 11 جولة من الحراسة إلى الدفاع ثم الوسط والهجوم.</p><div class="row"><button class="primary" onclick="createRoom()">إنشاء غرفة</button><button class="secondary" onclick="showJoin()">دخول غرفة</button></div><div id="joinBox" class="hidden"><input id="joinCode" placeholder="كود الغرفة"><button class="primary" onclick="joinRoom()">دخول الغرفة</button></div><div class="notice">💰 يبدأ كل لاعب بـ 100M — بداية كل مزاد 1M — المؤقت 20 ثانية.</div></section>
 <section id="lobby" class="hidden"><div class="panel center"><h2>الغرفة <span id="roomCode"></span></h2><p>شارك الكود مع صاحبك</p><div class="big" id="lobbyCode"></div><div id="playersList" class="notice"></div><button id="startBtn" class="primary" onclick="startAuction()">ابدأ المزاد</button></div></section>
 <section id="game" class="hidden"><div class="grid"><div class="panel center"><div class="row" style="justify-content:space-between"><span class="roundtag">الجولة <b id="roundNo">1</b>/11</span><span id="roundLabel" class="muted">حراسة</span><span>💰 <b id="budget">100M</b></span></div><div id="playerCard" style="margin-top:10px"></div><div class="auction"><span id="currentBid">1</span>M</div><div id="timerBox" class="timer">⏱️ <span id="timer">20</span> ثانية</div><div id="roundPause" class="roundPause hidden"></div><div id="turnInfo" class="turnInfo">جاري تحديد صاحب الدور...</div><div class="row auctionButtons" style="justify-content:center;margin-top:12px"><div class="bidControl"><button id="minusBid" class="bidAdjust" onclick="changeBidAmount(-1)">−</button><div id="bidAmount" class="bidNumber">1</div><button id="plusBid" class="bidAdjust" onclick="changeBidAmount(1)">+</button></div><button id="bidBtn" class="primary" onclick="placeCustomBid()">زايد</button><button id="skipBtn" class="skip" onclick="skipAuction()">تخطي</button></div><div id="replacementBox" class="replacement hidden"></div><p id="bidMsg" class="muted"></p></div><div class="panel"><h3>👥 اللاعبان</h3><div id="livePlayers" class="notice"></div><h3>📢 آخر المزايدات</h3><div id="bidList" class="bidlist"></div><h3>📝 تشكيلتي</h3><div id="myTeam" class="team"></div></div></div></section>
-<section id="result" class="hidden"><div class="matchBoard"><div class="boardHead"><div><span class="boardTitle">🏆 YOUSEF GAMES</span><span class="boardSub">MATCH DAY</span></div><div class="finalBadge">FULL TIME</div></div><div class="scoreRow"><div class="teamName" id="finalAName">الفريق الأول</div><div class="scoreBig" id="matchResult">0 — 0</div><div class="teamName" id="finalBName">الفريق الثاني</div></div><div class="goalStrip" id="goalStrip"></div><div class="boardBody"><div><h3>⚽ الأهداف</h3><div id="scorers" class="scorers"></div></div><div><h3>📋 أحداث المباراة</h3><div id="matchLog" class="feed"></div></div></div><div class="row" style="justify-content:center;margin-top:14px"><button class="primary" onclick="showLineups()">عرض التشكيلتين</button><button id="replayBtn" class="secondary" onclick="replayMatch()">🔄 طلب مباراة أخرى</button></div><div id="replayStatus" class="muted center" style="margin-top:9px"></div><div id="lineups" class="lineup" style="margin-top:12px"></div></div></section></div>
+<section id="result" class="hidden"><div class="matchBoard"><div class="boardHead"><div><span class="boardTitle">🏆 YOUSEF GAMES</span><span class="boardSub">MATCH DAY</span></div><div class="finalBadge">FULL TIME</div></div><div class="scoreRow"><div class="teamName" id="finalAName">الفريق الأول</div><div class="scoreBig" id="matchResult">0 — 0</div><div class="teamName" id="finalBName">الفريق الثاني</div></div><div class="goalStrip" id="goalStrip"></div><div class="boardBody"><div><h3>⚽ الأهداف</h3><div id="scorers" class="scorers"></div></div><div><h3>📋 أحداث المباراة</h3><div id="matchLog" class="feed"></div></div></div><div class="row" style="justify-content:center;margin-top:14px"><button class="primary" onclick="showLineups()">عرض التشكيلتين</button><button id="replayBtn" class="secondary" onclick="replayMatch()">🔄 طلب مباراة أخرى</button><button class="secondary" onclick="returnToHome()">🏠 العودة إلى القائمة الرئيسية</button></div><div id="replayStatus" class="muted center" style="margin-top:9px"></div><div id="lineups" class="lineup" style="margin-top:12px"></div></div></section></div>
 <div id="roundOverlay" class="roundOverlay hidden"><div class="roundPanel"><h2>🏆 نتيجة المزايدة</h2><p id="roundWinnerText" class="muted"></p><div id="roundCards" class="roundCards"></div><div id="roundCountdown" class="countdown">4</div><div class="muted">الجولة التالية تبدأ تلقائيًا</div></div></div><div id="simulationOverlay" class="simulationOverlay hidden"><div class="simulationPanel"><div class="simulationTitle">🤖 جاري محاكاة المباراة</div><div class="loader"></div><p class="muted">يتم الآن تحليل التشكيلتين وقوة كل لاعب والهجوم والوسط والدفاع وحراسة المرمى، ثم حساب سيناريو المباراة.</p><div id="simulationSeconds" class="simulationSeconds">4 ثواني</div></div></div>
 <div id="replayOverlay" class="replayOverlay hidden"><div class="replayPanel"><h2>🔄 مباراة أخرى؟</h2><p id="replayText" class="muted"></p><div id="replayButtons" class="replayButtons"><button class="acceptBtn" onclick="respondReplay(true)">✅ موافق</button><button class="dangerBtn" onclick="respondReplay(false)">❌ رفض</button></div><div id="replayWait" class="waitText hidden">⏳ في انتظار رد اللاعب الآخر...</div></div></div>
 <script>
@@ -16,11 +16,16 @@ const PLAYERS=[{"id":1,"name":"Kylian Mbappe","position":"ST","club":"Real Madri
 let selectedBidAmount=1;
 let lastAuctionPlayerId=null;
 function show(id){for(const x of ["home","lobby","game","result"])document.getElementById(x).classList.toggle("hidden",x!==id)}
+function returnToHome(){
+  // إعادة تحميل الصفحة تغلق اتصال الغرفة الحالي وتعيد اللعبة للقائمة الرئيسية بشكل نظيف.
+  window.location.reload();
+}
 function showJoin(){document.getElementById("joinBox").classList.remove("hidden")}
 function createRoom(){connect({type:"create"})}
 function joinRoom(){const code=document.getElementById("joinCode").value.trim().toUpperCase();if(!code){alert("اكتب كود الغرفة");return}connect({type:"join",room:code})}
-function changeBidAmount(change){selectedBidAmount=Math.max(1,selectedBidAmount+change);document.getElementById("bidAmount").textContent=selectedBidAmount}
-function placeCustomBid(){bid(selectedBidAmount)}
+function getMinimumBid(){const currentBid=Number(state?.bid)||0;return Math.max(1,currentBid)}
+function changeBidAmount(change){const minimumBid=getMinimumBid();selectedBidAmount=Math.max(minimumBid,selectedBidAmount+change);const bidAmountEl=document.getElementById("bidAmount");if(bidAmountEl)bidAmountEl.textContent=selectedBidAmount}
+function placeCustomBid(){const minimumBid=getMinimumBid();selectedBidAmount=Math.max(minimumBid,selectedBidAmount);bid(selectedBidAmount)}
 function connect(msg){const proto=location.protocol==="https:"?"wss":"ws";ws=new WebSocket(`${proto}://${location.host}`);ws.onopen=()=>ws.send(JSON.stringify(msg));ws.onmessage=e=>handle(JSON.parse(e.data))}
 function send(x){if(ws&&ws.readyState===1)ws.send(JSON.stringify(x))}function beep(freq=650,dur=.09,type="sine",gain=.035){try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(gain,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur)}catch(e){}}function bidSound(){beep(780,.07,"triangle",.06);setTimeout(()=>beep(980,.08,"triangle",.04),45)}function tickSound(){beep(480,.07,"square",.035)}function winSound(){beep(520,.12,"sine",.06);setTimeout(()=>beep(780,.18,"sine",.05),100)}
 function handle(m){
@@ -89,17 +94,18 @@ function showRoundResult(m){
 function renderState(){
  if(state.phase==="lobby"){show("lobby");document.getElementById("playersList").innerHTML=Object.values(state.players).map(p=>`👤 ${p.name} — ${p.budget}M`).join("<br>");document.getElementById("startBtn").style.display=isHost?"inline-block":"none";return}
  if(state.phase==="auction"){
-   // عند بدء جولة جديدة/ظهور لاعب جديد نرجع قيمة المزايدة إلى 1
-   if(state.current && state.current.id !== lastAuctionPlayerId){
-     lastAuctionPlayerId=state.current.id;
-     selectedBidAmount=1;
-     const bidAmountEl=document.getElementById("bidAmount");
-     if(bidAmountEl) bidAmountEl.textContent="1";
-   }
+   const isNewPlayer=state.current&&state.current.id!==lastAuctionPlayerId;
+   if(isNewPlayer){lastAuctionPlayerId=state.current.id;selectedBidAmount=Math.max(1,Number(state.bid)||1)}
+   const currentHighestBid=Math.max(1,Number(state.bid)||1);
+   if(selectedBidAmount<currentHighestBid)selectedBidAmount=currentHighestBid;
+   const bidAmountEl=document.getElementById("bidAmount");if(bidAmountEl)bidAmountEl.textContent=selectedBidAmount;
    document.getElementById("replayOverlay").classList.add("hidden");
-   const rb=document.getElementById("replayBtn");if(rb){rb.disabled=false;rb.classList.add("hidden");}
+   const rb=document.getElementById("replayBtn");if(rb){rb.disabled=false;rb.classList.add("hidden")}
    show("game");const mep=state.players[me];
-   document.getElementById("roundNo").textContent=state.round;document.getElementById("roundLabel").textContent=state.roundLabel;document.getElementById("budget").textContent=mep.budget+"M";document.getElementById("currentBid").textContent=state.bid;
+   document.getElementById("roundNo").textContent=state.round;
+   document.getElementById("roundLabel").textContent=state.roundLabel;
+   document.getElementById("budget").textContent=mep.budget+"M";
+   document.getElementById("currentBid").textContent=currentHighestBid;
    const myTurn=state.turn===me,turnName=state.players[state.turn]?.name||"—";
    const ti=document.getElementById("turnInfo");ti.textContent=myTurn?"🟢 دورك في المزايدة":`⏳ دور ${turnName} في المزايدة`;ti.className="turnInfo "+(myTurn?"myTurn":"otherTurn");
    ["minusBid","plusBid","bidBtn","skipBtn"].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!myTurn});
@@ -109,19 +115,9 @@ function renderState(){
    document.getElementById("livePlayers").innerHTML=Object.values(state.players).map(x=>`<div class="bid"><span>👤 ${x.name}</span><b>${x.budget}M</b></div>`).join("");
    document.getElementById("bidList").innerHTML=(state.bids||[]).slice(-12).reverse().map(b=>`<div class="bid"><span>${b.name}</span><b>${b.amount}M</b></div>`).join("")||"<span class=muted>لا توجد مزايدات بعد</span>";
    document.getElementById("myTeam").innerHTML=mep.team.map(id=>{const q=PLAYERS.find(x=>x.id===id);return `<div class="slot"><b>${q.name}</b><br><span class="small">${q.position} · ⭐${q.overall}</span></div>`}).join("")||"<div class=muted>لم تشترِ لاعبين بعد</div>";
-   clearInterval(timerHandle);timerHandle=setInterval(()=>{const left=Math.max(0,Math.ceil((state.endsAt-Date.now())/1000));document.getElementById("timer").textContent=left;document.getElementById("timerBox").classList.toggle("danger",left<=5);if(left<=5&&left>0&&left!==lastTick){lastTick=left;tickSound()}},250)
+   clearInterval(timerHandle);
+   timerHandle=setInterval(()=>{const left=Math.max(0,Math.ceil((state.endsAt-Date.now())/1000));document.getElementById("timer").textContent=left;document.getElementById("timerBox").classList.toggle("danger",left<=5);if(left<=5&&left>0&&left!==lastTick){lastTick=left;tickSound()}},250);
  }
-}
-function replayMatch(){
- const rb=document.getElementById("replayBtn"),rs=document.getElementById("replayStatus");
- rb.disabled=true;rs.textContent="⏳ تم إرسال طلب مباراة أخرى، في انتظار موافقة اللاعب الثاني...";
- send({type:"replayRequest"});
-}
-function respondReplay(accept){
- document.getElementById("replayButtons").classList.add("hidden");
- document.getElementById("replayWait").classList.remove("hidden");
- document.getElementById("replayText").textContent=accept?"تمت الموافقة. جاري تجهيز المباراة الجديدة...":"تم رفض الطلب.";
- send({type:"replayResponse",accept:!!accept});
 }
 function cardHTML(p){return `<div class="card"><div class="hero"><img src="/player-photo/${p.id}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="fallback" style="display:none">${p.name.slice(0,1)}</div></div><div class="rating">${p.overall}</div><div class="pos">${p.position}</div><div class="cardbody"><div class="name">${p.name}</div><div class="club">${p.club==="Retired"?"🏛️ أسطورة معتزل":"⚽ "+p.country+" · "+p.club}</div><div class="stats">${[["PAC","pace"],["SHO","shooting"],["PAS","passing"],["DRI","dribbling"],["DEF","defending"],["PHY","physical"]].map(([a,k])=>`<div class="stat">${a}<b>${Math.max(1,Math.min(99,p[k]||70))}</b></div>`).join("")}</div></div></div>`}
 function bid(amount){if(!state||state.phase!=="auction")return;bidSound();send({type:"bid",amount})}function skipAuction(){send({type:"skip"})}function startAuction(){send({type:"start"})}function showLineups(){const t=window.finalTeams;if(!t)return;document.getElementById("lineups").innerHTML=[t.a,t.b].map((u,i)=>`<div class="panel"><h3>${i===0?"🔵":"🔴"} ${u.name}</h3>${u.team.map(id=>{const p=PLAYERS.find(x=>x.id===id);return `<div class="miniCard">${p.position} — <b>${p.name}</b><br><span class="muted">⭐${p.overall}</span></div>`}).join("")}</div>`).join("")}
