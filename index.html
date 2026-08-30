@@ -42,7 +42,35 @@ function send(x){if(ws&&ws.readyState===1)ws.send(JSON.stringify(x))}function be
 function handle(m){
  if(m.type==="connected"){me=m.me;room=m.room;isHost=m.host;document.getElementById("roomPill").textContent=room;document.getElementById("roomCode").textContent=room;document.getElementById("lobbyCode").textContent=room;show("lobby")}
  if(m.type==="state"){state=m.state;renderState()}
- if(m.type==="roundEnd"){showRoundResult(m)}
+if(m.type==="roundEnd"){
+
+  /*
+    السيرفر أرسل الحالة الجديدة بعد
+    إضافة اللاعب للفريق.
+
+    نحدث state فوراً.
+  */
+
+  if(m.state){
+
+    state=m.state;
+
+    /*
+      إعادة رسم اللعبة الآن.
+      هذا يجعل اللاعب يظهر مباشرة
+      في خانة "تشكيلتي".
+    */
+
+    renderState();
+  }
+
+  /*
+    بعد تحديث التشكيلة
+    نظهر شاشة نتيجة المزاد.
+  */
+
+  showRoundResult(m);
+}
  if(m.type==="matchPreparing"){
    document.getElementById("roundOverlay").classList.add("hidden");
    const o=document.getElementById("simulationOverlay");o.classList.remove("hidden");
