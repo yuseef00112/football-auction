@@ -4,7 +4,88 @@
 @media(max-width:760px){.grid{grid-template-columns:1fr}.card{max-width:340px}.hero{height:200px}.stats{gap:3px}.stat{font-size:9px}.stat b{font-size:13px}}
 
 .simulationOverlay,.replayOverlay{position:fixed;inset:0;background:rgba(2,10,18,.94);z-index:80;display:flex;align-items:center;justify-content:center;padding:18px}.simulationOverlay.hidden,.replayOverlay.hidden{display:none}.simulationPanel,.replayPanel{width:min(560px,94vw);background:linear-gradient(145deg,#0b2033,#102f48);border:1px solid #4c7693;border-radius:25px;padding:26px;text-align:center;box-shadow:0 25px 80px #000b}.loader{width:72px;height:72px;margin:14px auto;border:6px solid #284963;border-top-color:#39d98a;border-radius:50%;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.simulationTitle{font-size:25px;font-weight:1000}.simulationSeconds{font-size:18px;color:#ffd166;font-weight:900}.replayPanel h2{margin-top:0}.replayButtons{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:18px}.dangerBtn{background:#e05260;color:#fff}.acceptBtn{background:#39d98a;color:#04130c}.waitText{margin-top:12px;padding:10px;border-radius:12px;background:#061321;color:#ffd166;font-weight:900}
-.bidControl{display:flex;align-items:center;justify-content:center;gap:6px;background:#061b16;border:1px solid #1d7d68;padding:6px;border-radius:18px;box-shadow:0 8px 25px rgba(0,0,0,.25)}.bidAdjust{width:45px;height:45px;padding:0;border-radius:12px;background:#124c41;color:#fff;font-size:26px;font-weight:900;transition:.2s}.bidAdjust:hover{background:#18bfa5;color:#06251f;transform:scale(1.08)}.bidNumber{min-width:60px;height:45px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:#092b24;border:1px solid #238f79;color:#4fffd7;font-size:22px;font-weight:1000}#bidBtn{background:#18bfa5;color:#06251f;transition:.2s}#bidBtn:hover{background:#43f0cc;transform:translateY(-2px);box-shadow:0 8px 20px rgba(24,191,165,.35)}</style></head><body><div class="app"><div class="top"><div class="logo">⚽ Yousef Games</div><div id="roomPill" class="pill">غير متصل</div></div>
+.bidControl{display:flex;align-items:center;justify-content:center;gap:6px;background:#061b16;border:1px solid #1d7d68;padding:6px;border-radius:18px;box-shadow:0 8px 25px rgba(0,0,0,.25)}.bidAdjust{width:45px;height:45px;padding:0;border-radius:12px;background:#124c41;color:#fff;font-size:26px;font-weight:900;transition:.2s}.bidAdjust:hover{background:#18bfa5;color:#06251f;transform:scale(1.08)}.bidNumber{min-width:60px;height:45px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:#092b24;border:1px solid #238f79;color:#4fffd7;font-size:22px;font-weight:1000}#bidBtn{background:#18bfa5;color:#06251f;transition:.2s}#bidBtn:hover{background:#43f0cc;transform:translateY(-2px);box-shadow:0 8px 20px rgba(24,191,165,.35)}
+/* ===== Football Pitch Theme ===== */
+:root{
+  --pitch-dark:#071f13;
+  --pitch-deep:#0b3d22;
+  --pitch-green:#0f6a35;
+  --pitch-light:#168447;
+  --line:#e8f5df;
+  --turquoise:#24d7c4;
+  --turquoise-dark:#109b8d;
+  --card:rgba(7,35,20,.92);
+  --card-2:rgba(10,58,31,.92);
+  --gold:#f6c84c;
+}
+body{
+  background:
+    radial-gradient(circle at 50% 0%,rgba(43,160,83,.28),transparent 38%),
+    linear-gradient(90deg,rgba(255,255,255,.035) 50%,transparent 50%) 0 0/80px 80px,
+    linear-gradient(0deg,rgba(255,255,255,.025) 50%,transparent 50%) 0 0/80px 80px,
+    linear-gradient(135deg,var(--pitch-dark),var(--pitch-deep) 48%,#082b19);
+  color:#f5fff6;
+}
+body:before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:.2;
+  background:
+    linear-gradient(90deg,transparent 49.7%,var(--line) 49.8%,var(--line) 50.2%,transparent 50.3%),
+    radial-gradient(circle at 50% 50%,transparent 0 74px,rgba(232,245,223,.75) 75px 77px,transparent 78px),
+    linear-gradient(0deg,transparent 15%,rgba(232,245,223,.55) 15.2%,transparent 15.4%,transparent 84.6%,rgba(232,245,223,.55) 84.8%,transparent 85%);
+  background-size:100% 100%;
+}
+.card,.panel,.section,.gameBox,.resultBox,.modalContent{
+  background:linear-gradient(145deg,rgba(7,35,20,.96),rgba(12,73,38,.9)) !important;
+  border:1px solid rgba(232,245,223,.22) !important;
+  box-shadow:0 16px 45px rgba(0,0,0,.32);
+}
+button,.primary,.secondary,.skip{
+  border:1px solid rgba(232,245,223,.22);
+  transition:transform .18s ease,box-shadow .18s ease,filter .18s ease,background .18s ease;
+}
+button:hover,.primary:hover,.secondary:hover,.skip:hover{
+  transform:translateY(-2px);
+  filter:brightness(1.08);
+  box-shadow:0 9px 22px rgba(0,0,0,.3);
+}
+.primary,#bidBtn{
+  background:linear-gradient(135deg,var(--turquoise),#38f0d8) !important;
+  color:#06291f !important;
+  font-weight:900;
+}
+.secondary{
+  background:linear-gradient(135deg,#0d6b38,#159052) !important;
+  color:#f5fff6 !important;
+}
+.skip{
+  background:linear-gradient(135deg,#173d2a,#245b3c) !important;
+  color:#f5fff6 !important;
+}
+.bidControl{
+  background:linear-gradient(145deg,#082a18,#10572d) !important;
+  border:1px solid rgba(232,245,223,.26) !important;
+}
+.bidAdjust{
+  background:linear-gradient(135deg,#0d6a38,#19a45a) !important;
+}
+.bidAdjust:hover{
+  background:linear-gradient(135deg,var(--turquoise-dark),var(--turquoise)) !important;
+}
+.bidNumber{
+  background:#062817 !important;
+  border-color:#2ecb73 !important;
+  color:#f5fff6 !important;
+}
+#timerBox,.turnInfo{
+  background:rgba(3,25,14,.68);
+  border-color:rgba(232,245,223,.2);
+}
+
+</style></head><body><div class="app"><div class="top"><div class="logo">⚽ Yousef Games</div><div id="roomPill" class="pill">غير متصل</div></div>
 <section id="home" class="panel"><h2>🏆 Football Auction</h2><p class="muted">مزاد كروي بين لاعبين فقط — 11 جولة من الحراسة إلى الدفاع ثم الوسط والهجوم.</p><div class="row"><button class="primary" onclick="createRoom()">إنشاء غرفة</button><button class="secondary" onclick="showJoin()">دخول غرفة</button></div><div id="joinBox" class="hidden"><input id="joinCode" placeholder="كود الغرفة"><button class="primary" onclick="joinRoom()">دخول الغرفة</button></div><div class="notice">💰 يبدأ كل لاعب بـ 100M — بداية كل مزاد 1M — المؤقت 20 ثانية.</div></section>
 <section id="lobby" class="hidden"><div class="panel center"><h2>الغرفة <span id="roomCode"></span></h2><p>شارك الكود مع صاحبك</p><div class="big" id="lobbyCode"></div><div id="playersList" class="notice"></div><button id="startBtn" class="primary" onclick="startAuction()">ابدأ المزاد</button></div></section>
 <section id="game" class="hidden"><div class="grid"><div class="panel center"><div class="row" style="justify-content:space-between"><span class="roundtag">الجولة <b id="roundNo">1</b>/11</span><span id="roundLabel" class="muted">حراسة</span><span>💰 <b id="budget">100M</b></span></div><div id="playerCard" style="margin-top:10px"></div><div class="auction"><span id="currentBid">1</span>M</div><div id="timerBox" class="timer">⏱️ <span id="timer">20</span> ثانية</div><div id="roundPause" class="roundPause hidden"></div><div id="turnInfo" class="turnInfo">جاري تحديد صاحب الدور...</div><div class="row auctionButtons" style="justify-content:center;margin-top:12px"><div class="bidControl"><button id="minusBid" class="bidAdjust" onclick="changeBidAmount(-1)">−</button><div id="bidAmount" class="bidNumber">1</div><button id="plusBid" class="bidAdjust" onclick="changeBidAmount(1)">+</button></div><button id="bidBtn" class="primary" onclick="placeCustomBid()">زايد</button><button id="skipBtn" class="skip" onclick="skipAuction()">تخطي</button></div><div id="replacementBox" class="replacement hidden"></div><p id="bidMsg" class="muted"></p></div><div class="panel"><h3>👥 اللاعبان</h3><div id="livePlayers" class="notice"></div><h3>📢 آخر المزايدات</h3><div id="bidList" class="bidlist"></div><h3>📝 تشكيلتي</h3><div id="myTeam" class="team"></div></div></div></section>
@@ -23,9 +104,22 @@ function returnToHome(){
 function showJoin(){document.getElementById("joinBox").classList.remove("hidden")}
 function createRoom(){connect({type:"create"})}
 function joinRoom(){const code=document.getElementById("joinCode").value.trim().toUpperCase();if(!code){alert("اكتب كود الغرفة");return}connect({type:"join",room:code})}
-function getMinimumBid(){const currentBid=Number(state?.bid)||0;return Math.max(1,currentBid)}
-function changeBidAmount(change){const minimumBid=getMinimumBid();selectedBidAmount=Math.max(minimumBid,selectedBidAmount+change);const bidAmountEl=document.getElementById("bidAmount");if(bidAmountEl)bidAmountEl.textContent=selectedBidAmount}
-function placeCustomBid(){const minimumBid=getMinimumBid();selectedBidAmount=Math.max(minimumBid,selectedBidAmount);bid(selectedBidAmount)}
+function getMinimumBid(){
+  const currentBid=Number(state?.bid)||0;
+  return Math.max(1,currentBid);
+}
+function changeBidAmount(change){
+  const minimumBid=getMinimumBid();
+  selectedBidAmount=Math.max(minimumBid,selectedBidAmount+change);
+  const bidAmountEl=document.getElementById("bidAmount");
+  if(bidAmountEl)bidAmountEl.textContent=selectedBidAmount;
+}
+function placeCustomBid(){
+  const minimumBid=getMinimumBid();
+  selectedBidAmount=Math.max(minimumBid,selectedBidAmount);
+  // الرقم المكتوب هو السعر النهائي الكلي، وليس مبلغًا يُضاف إلى مزايدة الخصم.
+  bid(selectedBidAmount);
+}
 function connect(msg){const proto=location.protocol==="https:"?"wss":"ws";ws=new WebSocket(`${proto}://${location.host}`);ws.onopen=()=>ws.send(JSON.stringify(msg));ws.onmessage=e=>handle(JSON.parse(e.data))}
 function send(x){if(ws&&ws.readyState===1)ws.send(JSON.stringify(x))}function beep(freq=650,dur=.09,type="sine",gain=.035){try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(gain,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur)}catch(e){}}function bidSound(){beep(780,.07,"triangle",.06);setTimeout(()=>beep(980,.08,"triangle",.04),45)}function tickSound(){beep(480,.07,"square",.035)}function winSound(){beep(520,.12,"sine",.06);setTimeout(()=>beep(780,.18,"sine",.05),100)}
 function handle(m){
