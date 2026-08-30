@@ -86,7 +86,8 @@ function finishGame(r){
   const ps=[...r.players.values()]; if(ps.length!==2)return;
   const A=teamRatings(ps[0]), B=teamRatings(ps[1]);
 
-  // AI match engine: chance creation is driven by attack, midfield, passing and shooting,
+  // Deterministic fair match engine: same two squads always produce the same result.
+  // It uses attack, midfield, passing and shooting,
   // while the opponent's defence and goalkeeper reduce expected goals.
   const strengthA=.34*A.att+.22*A.mid+.14*A.shooting+.12*A.passing+.10*A.overall+.08*A.gk;
   const strengthB=.34*B.att+.22*B.mid+.14*B.shooting+.12*B.passing+.10*B.overall+.08*B.gk;
@@ -156,7 +157,9 @@ wss.on("connection",ws=>{
   ws.send(JSON.stringify({type:"publicRooms",rooms:publicRooms()}));
   ws.on("message",raw=>{
     let m;try{m=JSON.parse(raw)}catch{return}
-    if(m.type==="create"){
+    if(m.type==="browse"){
+      ws.send(JSON.stringify({type:"publicRooms",rooms:publicRooms()}));
+    }else if(m.type==="create"){
       room=roomCode();
       const teamSize=Number(m.teamSize)===5?5:11;
       const budget=teamSize===5?100:200;
@@ -178,7 +181,7 @@ wss.on("connection",ws=>{
       const r=rooms.get(room);if(!r)return;
 
       if(m.type==="start"&&[...r.players.keys()][0]===id&&r.players.size===2&&r.phase==="lobby"){
-        r.phase="auction";r.round=1;startRound(r);
+        r.phase="auction";r.round=1;broadcastRooms();startRound(r);
       }
 
       if(m.type==="bid"&&r.phase==="auction"){
@@ -231,7 +234,9 @@ wss.on("connection",ws=>{
     if(room&&rooms.has(room)){
       const r=rooms.get(room);r.clients.delete(ws);
       if(r.players.has(id)&&r.phase==="lobby"){
-        r.players.delete(id);broadcast(r,{type:"state",state:publicState(r)});broadcastRooms();
+        r.players.delete(id);broadcast(r,{type:"state",state:publicState(r)});
+        if(r.players.size===0){clearTimeout(r.timer);rooms.delete(room)}
+        broadcastRooms();
       }
     }
   });
