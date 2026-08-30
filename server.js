@@ -238,12 +238,43 @@ function finishRound(r){
     }
   }
   const loser=loserId?r.players.get(loserId):null;
-  const summary={
-    winnerId:winnerId||null,loserId:loserId||null,player:r.current,
-    replacement:replacement?{player:replacement,reason:"skip"}:null,
-    price:winner?r.bid:0,winnerName:winner?.name||"—",loserName:loser?.name||"—"
-  };
-  broadcast(r,{type:"roundEnd",...summary});
+const summary={
+  winnerId:winnerId||null,
+  loserId:loserId||null,
+  player:r.current,
+
+  replacement:replacement
+    ? {
+        player:replacement,
+        reason:"skip"
+      }
+    : null,
+
+  price:winner ? r.bid : 0,
+
+  winnerName:winner?.name||"—",
+  loserName:loser?.name||"—"
+};
+
+/*
+  مهم جداً:
+
+  بعد انتهاء المزاد، اللاعب يكون تم إضافته
+  فعلياً إلى winner.team أو loser.team.
+
+  لذلك نرسل الحالة الجديدة بالكامل
+  مع رسالة انتهاء الجولة.
+
+  بهذا الشكل الواجهة تحدث "تشكيلتي"
+  فوراً بدون انتظار الجولة التالية.
+*/
+const updatedState=publicState(r);
+
+broadcast(r,{
+  type:"roundEnd",
+  ...summary,
+  state:updatedState
+});
   r.round++;
   if(r.round>(r.totalRounds||11)){
     setTimeout(()=>{broadcast(r,{type:"matchPreparing",seconds:4});setTimeout(()=>finishGame(r),4000)},4000);
