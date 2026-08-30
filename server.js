@@ -1,278 +1,4085 @@
-const http=require("http"),fs=require("fs"),path=require("path"),https=require("https"),WebSocket=require("ws");
-const PORT=process.env.PORT||3000, rooms=new Map(), photoCache=new Map();
+const http=require("http"),
+fs=require("fs"),
+path=require("path"),
+https=require("https"),
+WebSocket=require("ws");
+
+const PORT=process.env.PORT||3000;
+const rooms=new Map();
+const photoCache=new Map();
+
 const profilesFile=path.join(__dirname,"profiles.json");
-let profiles={};try{profiles=JSON.parse(fs.readFileSync(profilesFile,"utf8"))}catch(e){profiles={}}
-function saveProfiles(){try{fs.writeFileSync(profilesFile,JSON.stringify(profiles,null,2))}catch(e){}}
-function profileKey(p){return p.profileId||p.name||"لاعب"}
-function touchProfile(p){const k=profileKey(p);profiles[k]||={name:p.name||"لاعب",photo:p.photo||"",matches:0,wins:0,losses:0,draws:0,points:0};profiles[k].name=p.name||profiles[k].name;profiles[k].photo=p.photo||profiles[k].photo||"";return profiles[k]}
-function leaderboard(){return Object.entries(profiles).map(([id,p])=>({id,...p})).sort((a,b)=>b.points-a.points||b.wins-a.wins||a.losses-b.losses)}
-function publicRooms(){return [...rooms.entries()].filter(([_,r])=>r.phase==="lobby").map(([code,r])=>{const host=[...r.players.values()][0];return {code,owner:host?.name||"لاعب",mode:r.mode,teamSize:r.teamSize,budget:r.startBudget,count:r.players.size}})}
-function broadcastRooms(){const msg=JSON.stringify({type:"publicRooms",rooms:publicRooms()});for(const client of wss.clients)if(client.readyState===1)client.send(msg)}
-const players=[{"id":1,"name":"Kylian Mbappe","position":"ST","club":"Real Madrid","country":"France","overall":91,"pace":34,"shooting":95,"passing":92,"dribbling":90,"defending":91,"physical":78,"stamina":88,"tier":"Elite","basePrice":10,"retired":false},{"id":2,"name":"Erling Haaland","position":"ST","club":"Manchester City","country":"Norway","overall":91,"pace":36,"shooting":96,"passing":90,"dribbling":80,"defending":86,"physical":92,"stamina":93,"tier":"Elite","basePrice":10,"retired":false},{"id":3,"name":"Vinicius Junior","position":"LW","club":"Real Madrid","country":"Brazil","overall":90,"pace":35,"shooting":96,"passing":88,"dribbling":91,"defending":93,"physical":70,"stamina":82,"tier":"Elite","basePrice":10,"retired":false},{"id":4,"name":"Jude Bellingham","position":"CM","club":"Real Madrid","country":"England","overall":90,"pace":34,"shooting":88,"passing":85,"dribbling":91,"defending":90,"physical":82,"stamina":88,"tier":"Elite","basePrice":10,"retired":false},{"id":5,"name":"Mohamed Salah","position":"RW","club":"Liverpool","country":"Egypt","overall":89,"pace":31,"shooting":90,"passing":90,"dribbling":88,"defending":91,"physical":58,"stamina":78,"tier":"Elite","basePrice":10,"retired":false},{"id":6,"name":"Harry Kane","position":"ST","club":"Bayern Munich","country":"England","overall":89,"pace":30,"shooting":84,"passing":94,"dribbling":88,"defending":82,"physical":48,"stamina":85,"tier":"Elite","basePrice":10,"retired":false},{"id":7,"name":"Rodri","position":"CDM","club":"Manchester City","country":"Spain","overall":90,"pace":32,"shooting":72,"passing":84,"dribbling":94,"defending":78,"physical":90,"stamina":92,"tier":"Elite","basePrice":10,"retired":false},{"id":8,"name":"Kevin De Bruyne","position":"CM","club":"Manchester City","country":"Belgium","overall":88,"pace":29,"shooting":74,"passing":86,"dribbling":96,"defending":87,"physical":62,"stamina":78,"tier":"Elite","basePrice":10,"retired":false},{"id":9,"name":"Lamine Yamal","position":"RW","club":"Barcelona","country":"Spain","overall":89,"pace":28,"shooting":95,"passing":82,"dribbling":91,"defending":94,"physical":50,"stamina":70,"tier":"Elite","basePrice":10,"retired":false},{"id":10,"name":"Bukayo Saka","position":"RW","club":"Arsenal","country":"England","overall":88,"pace":28,"shooting":91,"passing":86,"dribbling":88,"defending":91,"physical":55,"stamina":78,"tier":"Elite","basePrice":10,"retired":false},{"id":11,"name":"Phil Foden","position":"AM","club":"Manchester City","country":"England","overall":88,"pace":27,"shooting":88,"passing":85,"dribbling":91,"defending":92,"physical":52,"stamina":75,"tier":"Elite","basePrice":10,"retired":false},{"id":12,"name":"Florian Wirtz","position":"AM","club":"Liverpool","country":"Germany","overall":88,"pace":27,"shooting":82,"passing":82,"dribbling":94,"defending":91,"physical":55,"stamina":73,"tier":"Elite","basePrice":10,"retired":false},{"id":13,"name":"Pedri","position":"CM","club":"Barcelona","country":"Spain","overall":87,"pace":25,"shooting":76,"passing":76,"dribbling":95,"defending":90,"physical":58,"stamina":75,"tier":"Strong","basePrice":10,"retired":false},{"id":14,"name":"Federico Valverde","position":"CM","club":"Real Madrid","country":"Uruguay","overall":88,"pace":30,"shooting":91,"passing":82,"dribbling":88,"defending":84,"physical":76,"stamina":94,"tier":"Elite","basePrice":10,"retired":false},{"id":15,"name":"Martin Odegaard","position":"AM","club":"Arsenal","country":"Norway","overall":87,"pace":24,"shooting":72,"passing":78,"dribbling":94,"defending":89,"physical":56,"stamina":74,"tier":"Strong","basePrice":10,"retired":false},{"id":16,"name":"Declan Rice","position":"CDM","club":"Arsenal","country":"England","overall":87,"pace":25,"shooting":79,"passing":78,"dribbling":87,"defending":78,"physical":91,"stamina":90,"tier":"Strong","basePrice":10,"retired":false},{"id":17,"name":"William Saliba","position":"CB","club":"Arsenal","country":"France","overall":87,"pace":22,"shooting":78,"passing":65,"dribbling":74,"defending":72,"physical":91,"stamina":90,"tier":"Strong","basePrice":10,"retired":false},{"id":18,"name":"Virgil van Dijk","position":"CB","club":"Liverpool","country":"Netherlands","overall":87,"pace":18,"shooting":74,"passing":75,"dribbling":78,"defending":71,"physical":91,"stamina":88,"tier":"Strong","basePrice":10,"retired":false},{"id":19,"name":"Antonio Rudiger","position":"CB","club":"Real Madrid","country":"Germany","overall":86,"pace":17,"shooting":79,"passing":65,"dribbling":69,"defending":68,"physical":90,"stamina":92,"tier":"Strong","basePrice":9,"retired":false},{"id":20,"name":"Alisson Becker","position":"GK","club":"Liverpool","country":"Brazil","overall":89,"pace":20,"shooting":58,"passing":55,"dribbling":70,"defending":72,"physical":93,"stamina":86,"tier":"Elite","basePrice":10,"retired":false},{"id":21,"name":"Thibaut Courtois","position":"GK","club":"Real Madrid","country":"Belgium","overall":89,"pace":19,"shooting":55,"passing":52,"dribbling":68,"defending":70,"physical":95,"stamina":84,"tier":"Elite","basePrice":10,"retired":false},{"id":22,"name":"Jan Oblak","position":"GK","club":"Atletico Madrid","country":"Slovenia","overall":87,"pace":17,"shooting":51,"passing":48,"dribbling":65,"defending":62,"physical":94,"stamina":79,"tier":"Strong","basePrice":10,"retired":false},{"id":23,"name":"Achraf Hakimi","position":"RB","club":"PSG","country":"Morocco","overall":86,"pace":27,"shooting":94,"passing":68,"dribbling":80,"defending":87,"physical":78,"stamina":93,"tier":"Strong","basePrice":9,"retired":false},{"id":24,"name":"Theo Hernandez","position":"LB","club":"AC Milan","country":"France","overall":86,"pace":25,"shooting":96,"passing":72,"dribbling":77,"defending":86,"physical":76,"stamina":92,"tier":"Strong","basePrice":9,"retired":false},{"id":25,"name":"Rafael Leao","position":"LW","club":"AC Milan","country":"Portugal","overall":86,"pace":26,"shooting":95,"passing":85,"dribbling":78,"defending":91,"physical":58,"stamina":84,"tier":"Strong","basePrice":9,"retired":false},{"id":26,"name":"Khvicha Kvaratskhelia","position":"LW","club":"PSG","country":"Georgia","overall":86,"pace":25,"shooting":91,"passing":82,"dribbling":84,"defending":93,"physical":48,"stamina":78,"tier":"Strong","basePrice":9,"retired":false},{"id":27,"name":"Nico Williams","position":"LW","club":"Athletic Club","country":"Spain","overall":85,"pace":25,"shooting":96,"passing":78,"dribbling":80,"defending":91,"physical":52,"stamina":83,"tier":"Strong","basePrice":9,"retired":false},{"id":28,"name":"Ousmane Dembele","position":"RW","club":"PSG","country":"France","overall":87,"pace":29,"shooting":97,"passing":82,"dribbling":86,"defending":94,"physical":45,"stamina":76,"tier":"Strong","basePrice":10,"retired":false},{"id":29,"name":"Lautaro Martinez","position":"ST","club":"Inter","country":"Argentina","overall":88,"pace":27,"shooting":84,"passing":92,"dribbling":78,"defending":86,"physical":55,"stamina":89,"tier":"Elite","basePrice":10,"retired":false},{"id":30,"name":"Victor Osimhen","position":"ST","club":"Galatasaray","country":"Nigeria","overall":86,"pace":28,"shooting":96,"passing":91,"dribbling":70,"defending":82,"physical":60,"stamina":94,"tier":"Strong","basePrice":9,"retired":false},{"id":31,"name":"Robert Lewandowski","position":"ST","club":"Barcelona","country":"Poland","overall":88,"pace":27,"shooting":77,"passing":94,"dribbling":83,"defending":83,"physical":45,"stamina":83,"tier":"Elite","basePrice":10,"retired":false},{"id":32,"name":"Antoine Griezmann","position":"AM","club":"Atletico Madrid","country":"France","overall":87,"pace":28,"shooting":80,"passing":88,"dribbling":88,"defending":87,"physical":62,"stamina":78,"tier":"Strong","basePrice":10,"retired":false},{"id":33,"name":"Bernardo Silva","position":"AM","club":"Manchester City","country":"Portugal","overall":87,"pace":25,"shooting":82,"passing":78,"dribbling":94,"defending":95,"physical":52,"stamina":73,"tier":"Strong","basePrice":10,"retired":false},{"id":34,"name":"Bruno Fernandes","position":"AM","club":"Manchester United","country":"Portugal","overall":87,"pace":28,"shooting":73,"passing":86,"dribbling":92,"defending":88,"physical":48,"stamina":75,"tier":"Strong","basePrice":10,"retired":false},{"id":35,"name":"Joshua Kimmich","position":"CDM","club":"Bayern Munich","country":"Germany","overall":86,"pace":26,"shooting":76,"passing":71,"dribbling":91,"defending":84,"physical":81,"stamina":81,"tier":"Strong","basePrice":9,"retired":false},{"id":36,"name":"Trent Alexander-Arnold","position":"RB","club":"Liverpool","country":"England","overall":86,"pace":27,"shooting":78,"passing":69,"dribbling":95,"defending":86,"physical":62,"stamina":80,"tier":"Strong","basePrice":9,"retired":false},{"id":37,"name":"Alphonso Davies","position":"LB","club":"Bayern Munich","country":"Canada","overall":84,"pace":25,"shooting":97,"passing":63,"dribbling":78,"defending":86,"physical":68,"stamina":91,"tier":"Strong","basePrice":9,"retired":false},{"id":38,"name":"Gabriel Magalhaes","position":"CB","club":"Arsenal","country":"Brazil","overall":85,"pace":20,"shooting":69,"passing":67,"dribbling":72,"defending":70,"physical":90,"stamina":87,"tier":"Strong","basePrice":9,"retired":false},{"id":39,"name":"Marquinhos","position":"CB","club":"PSG","country":"Brazil","overall":85,"pace":22,"shooting":76,"passing":67,"dribbling":78,"defending":75,"physical":89,"stamina":83,"tier":"Strong","basePrice":9,"retired":false},{"id":40,"name":"Ronald Araujo","position":"CB","club":"Barcelona","country":"Uruguay","overall":85,"pace":24,"shooting":84,"passing":62,"dribbling":71,"defending":70,"physical":91,"stamina":91,"tier":"Strong","basePrice":9,"retired":false},{"id":41,"name":"Ruben Dias","position":"CB","club":"Manchester City","country":"Portugal","overall":86,"pace":19,"shooting":71,"passing":64,"dribbling":75,"defending":68,"physical":93,"stamina":84,"tier":"Strong","basePrice":9,"retired":false},{"id":42,"name":"Mike Maignan","position":"GK","club":"AC Milan","country":"France","overall":87,"pace":20,"shooting":61,"passing":51,"dribbling":69,"defending":70,"physical":92,"stamina":91,"tier":"Strong","basePrice":10,"retired":false},{"id":43,"name":"Ederson","position":"GK","club":"Manchester City","country":"Brazil","overall":86,"pace":23,"shooting":61,"passing":54,"dribbling":84,"defending":82,"physical":90,"stamina":88,"tier":"Strong","basePrice":9,"retired":false},{"id":44,"name":"Emiliano Martinez","position":"GK","club":"Aston Villa","country":"Argentina","overall":85,"pace":21,"shooting":54,"passing":50,"dribbling":66,"defending":63,"physical":91,"stamina":84,"tier":"Strong","basePrice":9,"retired":false},{"id":45,"name":"Enzo Fernandez","position":"CM","club":"Chelsea","country":"Argentina","overall":85,"pace":26,"shooting":72,"passing":74,"dribbling":91,"defending":82,"physical":61,"stamina":79,"tier":"Strong","basePrice":9,"retired":false},{"id":46,"name":"Alexis Mac Allister","position":"CM","club":"Liverpool","country":"Argentina","overall":85,"pace":24,"shooting":70,"passing":77,"dribbling":89,"defending":86,"physical":65,"stamina":80,"tier":"Strong","basePrice":9,"retired":false},{"id":47,"name":"Dominik Szoboszlai","position":"CM","club":"Liverpool","country":"Hungary","overall":84,"pace":27,"shooting":89,"passing":78,"dribbling":83,"defending":81,"physical":63,"stamina":91,"tier":"Strong","basePrice":9,"retired":false},{"id":48,"name":"Nicolo Barella","position":"CM","club":"Inter","country":"Italy","overall":85,"pace":24,"shooting":85,"passing":76,"dribbling":88,"defending":87,"physical":70,"stamina":86,"tier":"Strong","basePrice":9,"retired":false},{"id":49,"name":"Aurelien Tchouameni","position":"CDM","club":"Real Madrid","country":"France","overall":84,"pace":23,"shooting":74,"passing":67,"dribbling":81,"defending":72,"physical":88,"stamina":88,"tier":"Strong","basePrice":9,"retired":false},{"id":50,"name":"Eduardo Camavinga","position":"CM","club":"Real Madrid","country":"France","overall":85,"pace":25,"shooting":86,"passing":65,"dribbling":86,"defending":82,"physical":83,"stamina":91,"tier":"Strong","basePrice":9,"retired":false},{"id":51,"name":"Gavi","position":"CM","club":"Barcelona","country":"Spain","overall":84,"pace":24,"shooting":72,"passing":65,"dribbling":87,"defending":84,"physical":74,"stamina":87,"tier":"Strong","basePrice":9,"retired":false},{"id":52,"name":"Frenkie de Jong","position":"CM","club":"Barcelona","country":"Netherlands","overall":86,"pace":24,"shooting":81,"passing":69,"dribbling":93,"defending":91,"physical":62,"stamina":78,"tier":"Strong","basePrice":9,"retired":false},{"id":53,"name":"Mikel Merino","position":"CM","club":"Arsenal","country":"Spain","overall":83,"pace":21,"shooting":65,"passing":75,"dribbling":84,"defending":78,"physical":72,"stamina":85,"tier":"Average","basePrice":9,"retired":false},{"id":54,"name":"Martin Zubimendi","position":"CDM","club":"Real Sociedad","country":"Spain","overall":84,"pace":22,"shooting":62,"passing":63,"dribbling":88,"defending":80,"physical":83,"stamina":78,"tier":"Strong","basePrice":9,"retired":false},{"id":55,"name":"Gabriel Martinelli","position":"LW","club":"Arsenal","country":"Brazil","overall":84,"pace":26,"shooting":94,"passing":80,"dribbling":75,"defending":89,"physical":48,"stamina":84,"tier":"Strong","basePrice":9,"retired":false},{"id":56,"name":"Luis Diaz","position":"LW","club":"Liverpool","country":"Colombia","overall":85,"pace":27,"shooting":93,"passing":82,"dribbling":78,"defending":90,"physical":46,"stamina":83,"tier":"Strong","basePrice":9,"retired":false},{"id":57,"name":"Diogo Jota","position":"ST","club":"Liverpool","country":"Portugal","overall":84,"pace":25,"shooting":83,"passing":88,"dribbling":76,"defending":82,"physical":50,"stamina":82,"tier":"Strong","basePrice":9,"retired":false},{"id":58,"name":"Darwin Nunez","position":"ST","club":"Liverpool","country":"Uruguay","overall":83,"pace":27,"shooting":95,"passing":83,"dribbling":68,"defending":78,"physical":56,"stamina":94,"tier":"Average","basePrice":9,"retired":false},{"id":59,"name":"Julian Alvarez","position":"ST","club":"Atletico Madrid","country":"Argentina","overall":86,"pace":26,"shooting":89,"passing":88,"dribbling":82,"defending":88,"physical":52,"stamina":87,"tier":"Strong","basePrice":9,"retired":false},{"id":60,"name":"Alexander Isak","position":"ST","club":"Newcastle","country":"Sweden","overall":85,"pace":25,"shooting":94,"passing":89,"dribbling":76,"defending":88,"physical":45,"stamina":86,"tier":"Strong","basePrice":9,"retired":false},{"id":61,"name":"Cole Palmer","position":"AM","club":"Chelsea","country":"England","overall":87,"pace":27,"shooting":82,"passing":91,"dribbling":93,"defending":92,"physical":42,"stamina":77,"tier":"Strong","basePrice":10,"retired":false},{"id":62,"name":"Christopher Nkunku","position":"AM","club":"Chelsea","country":"France","overall":83,"pace":20,"shooting":86,"passing":84,"dribbling":78,"defending":86,"physical":48,"stamina":74,"tier":"Average","basePrice":9,"retired":false},{"id":63,"name":"Rasmus Hojlund","position":"ST","club":"Manchester United","country":"Denmark","overall":82,"pace":17,"shooting":91,"passing":78,"dribbling":62,"defending":75,"physical":54,"stamina":91,"tier":"Average","basePrice":9,"retired":false},{"id":64,"name":"Eberechi Eze","position":"AM","club":"Crystal Palace","country":"England","overall":82,"pace":16,"shooting":88,"passing":79,"dribbling":82,"defending":89,"physical":45,"stamina":77,"tier":"Average","basePrice":9,"retired":false},{"id":65,"name":"James Maddison","position":"AM","club":"Tottenham","country":"England","overall":83,"pace":18,"shooting":68,"passing":82,"dribbling":89,"defending":86,"physical":42,"stamina":71,"tier":"Average","basePrice":9,"retired":false},{"id":66,"name":"Jack Grealish","position":"LW","club":"Manchester City","country":"England","overall":82,"pace":18,"shooting":82,"passing":73,"dribbling":88,"defending":91,"physical":39,"stamina":72,"tier":"Average","basePrice":9,"retired":false},{"id":67,"name":"Moussa Diaby","position":"RW","club":"Al-Ittihad","country":"France","overall":80,"pace":15,"shooting":96,"passing":74,"dribbling":75,"defending":87,"physical":42,"stamina":85,"tier":"Average","basePrice":9,"retired":false},{"id":68,"name":"Riyad Mahrez","position":"RW","club":"Al-Ahli","country":"Algeria","overall":84,"pace":12,"shooting":81,"passing":84,"dribbling":88,"defending":92,"physical":39,"stamina":69,"tier":"Strong","basePrice":9,"retired":false},{"id":69,"name":"Sadio Mane","position":"LW","club":"Al-Nassr","country":"Senegal","overall":83,"pace":13,"shooting":88,"passing":84,"dribbling":78,"defending":86,"physical":49,"stamina":86,"tier":"Average","basePrice":9,"retired":false},{"id":70,"name":"Karim Benzema","position":"ST","club":"Al-Ittihad","country":"France","overall":85,"pace":11,"shooting":74,"passing":93,"dribbling":89,"defending":88,"physical":42,"stamina":76,"tier":"Strong","basePrice":9,"retired":false},{"id":71,"name":"Neymar Jr","position":"LW","club":"Santos","country":"Brazil","overall":86,"pace":10,"shooting":84,"passing":86,"dribbling":93,"defending":96,"physical":38,"stamina":67,"tier":"Strong","basePrice":9,"retired":false},{"id":72,"name":"Lionel Messi","position":"RW","club":"Inter Miami","country":"Argentina","overall":92,"pace":9,"shooting":82,"passing":96,"dribbling":98,"defending":97,"physical":35,"stamina":66,"tier":"Elite","basePrice":10,"retired":false},{"id":73,"name":"Cristiano Ronaldo","position":"ST","club":"Al-Nassr","country":"Portugal","overall":90,"pace":8,"shooting":78,"passing":96,"dribbling":84,"defending":91,"physical":45,"stamina":82,"tier":"Elite","basePrice":10,"retired":false},{"id":74,"name":"Zinedine Zidane","position":"AM","club":"Retired","country":"France","overall":96,"pace":0,"shooting":84,"passing":92,"dribbling":98,"defending":97,"physical":55,"stamina":83,"tier":"Legend","basePrice":11,"retired":true},{"id":75,"name":"Ronaldinho","position":"LW","club":"Retired","country":"Brazil","overall":95,"pace":0,"shooting":92,"passing":91,"dribbling":95,"defending":99,"physical":42,"stamina":79,"tier":"Legend","basePrice":10,"retired":true},{"id":76,"name":"Ronaldo Nazario","position":"ST","club":"Retired","country":"Brazil","overall":96,"pace":0,"shooting":97,"passing":98,"dribbling":90,"defending":96,"physical":45,"stamina":92,"tier":"Legend","basePrice":11,"retired":true},{"id":77,"name":"Thierry Henry","position":"ST","club":"Retired","country":"France","overall":95,"pace":0,"shooting":97,"passing":95,"dribbling":91,"defending":94,"physical":53,"stamina":88,"tier":"Legend","basePrice":10,"retired":true},{"id":78,"name":"Xavi","position":"CM","club":"Retired","country":"Spain","overall":94,"pace":0,"shooting":73,"passing":81,"dribbling":99,"defending":97,"physical":51,"stamina":73,"tier":"Legend","basePrice":10,"retired":true},{"id":79,"name":"Andres Iniesta","position":"CM","club":"Retired","country":"Spain","overall":94,"pace":0,"shooting":76,"passing":83,"dribbling":99,"defending":98,"physical":45,"stamina":72,"tier":"Legend","basePrice":10,"retired":true},{"id":80,"name":"Andrea Pirlo","position":"CM","club":"Retired","country":"Italy","overall":93,"pace":0,"shooting":66,"passing":78,"dribbling":99,"defending":91,"physical":47,"stamina":61,"tier":"Legend","basePrice":10,"retired":true},{"id":81,"name":"Paolo Maldini","position":"CB","club":"Retired","country":"Italy","overall":95,"pace":0,"shooting":78,"passing":60,"dribbling":83,"defending":82,"physical":99,"stamina":87,"tier":"Legend","basePrice":10,"retired":true},{"id":82,"name":"Franco Baresi","position":"CB","club":"Retired","country":"Italy","overall":94,"pace":0,"shooting":72,"passing":54,"dribbling":86,"defending":84,"physical":99,"stamina":82,"tier":"Legend","basePrice":10,"retired":true},{"id":83,"name":"Gianluigi Buffon","position":"GK","club":"Retired","country":"Italy","overall":94,"pace":0,"shooting":45,"passing":42,"dribbling":62,"defending":59,"physical":99,"stamina":84,"tier":"Legend","basePrice":10,"retired":true},{"id":84,"name":"Iker Casillas","position":"GK","club":"Retired","country":"Spain","overall":93,"pace":0,"shooting":52,"passing":43,"dribbling":61,"defending":64,"physical":98,"stamina":80,"tier":"Legend","basePrice":10,"retired":true},{"id":85,"name":"Manuel Neuer","position":"GK","club":"Bayern Munich","country":"Germany","overall":88,"pace":9,"shooting":54,"passing":48,"dribbling":74,"defending":75,"physical":92,"stamina":81,"tier":"Elite","basePrice":10,"retired":false},{"id":86,"name":"Didier Drogba","position":"ST","club":"Retired","country":"Ivory Coast","overall":94,"pace":0,"shooting":80,"passing":96,"dribbling":78,"defending":85,"physical":55,"stamina":96,"tier":"Legend","basePrice":10,"retired":true},{"id":87,"name":"Samuel Eto'o","position":"ST","club":"Retired","country":"Cameroon","overall":94,"pace":0,"shooting":96,"passing":94,"dribbling":82,"defending":91,"physical":48,"stamina":90,"tier":"Legend","basePrice":10,"retired":true},{"id":88,"name":"Kaka","position":"AM","club":"Retired","country":"Brazil","overall":93,"pace":0,"shooting":95,"passing":91,"dribbling":94,"defending":95,"physical":43,"stamina":86,"tier":"Legend","basePrice":10,"retired":true},{"id":89,"name":"Steven Gerrard","position":"CM","club":"Retired","country":"England","overall":92,"pace":0,"shooting":86,"passing":87,"dribbling":91,"defending":88,"physical":71,"stamina":91,"tier":"Legend","basePrice":10,"retired":true},{"id":90,"name":"Frank Lampard","position":"CM","club":"Retired","country":"England","overall":91,"pace":0,"shooting":74,"passing":91,"dribbling":90,"defending":86,"physical":55,"stamina":82,"tier":"Legend","basePrice":10,"retired":true},{"id":91,"name":"David Beckham","position":"RM","club":"Retired","country":"England","overall":90,"pace":0,"shooting":76,"passing":79,"dribbling":96,"defending":88,"physical":48,"stamina":78,"tier":"Legend","basePrice":10,"retired":true},{"id":92,"name":"Arjen Robben","position":"RW","club":"Retired","country":"Netherlands","overall":92,"pace":0,"shooting":95,"passing":91,"dribbling":91,"defending":96,"physical":42,"stamina":78,"tier":"Legend","basePrice":10,"retired":true},{"id":93,"name":"Zlatan Ibrahimovic","position":"ST","club":"Retired","country":"Sweden","overall":93,"pace":0,"shooting":74,"passing":97,"dribbling":88,"defending":87,"physical":49,"stamina":91,"tier":"Legend","basePrice":10,"retired":true},{"id":94,"name":"Luis Figo","position":"RW","club":"Retired","country":"Portugal","overall":92,"pace":0,"shooting":88,"passing":87,"dribbling":94,"defending":95,"physical":44,"stamina":79,"tier":"Legend","basePrice":10,"retired":true},{"id":95,"name":"Fabio Cannavaro","position":"CB","club":"Retired","country":"Italy","overall":92,"pace":0,"shooting":84,"passing":53,"dribbling":78,"defending":79,"physical":99,"stamina":91,"tier":"Legend","basePrice":10,"retired":true},{"id":96,"name":"Cafu","position":"RB","club":"Retired","country":"Brazil","overall":92,"pace":0,"shooting":96,"passing":61,"dribbling":86,"defending":89,"physical":87,"stamina":93,"tier":"Legend","basePrice":10,"retired":true},{"id":97,"name":"Roberto Carlos","position":"LB","club":"Retired","country":"Brazil","overall":92,"pace":0,"shooting":98,"passing":75,"dribbling":86,"defending":91,"physical":82,"stamina":95,"tier":"Legend","basePrice":10,"retired":true},{"id":98,"name":"Clarence Seedorf","position":"CM","club":"Retired","country":"Netherlands","overall":91,"pace":0,"shooting":82,"passing":78,"dribbling":92,"defending":85,"physical":67,"stamina":89,"tier":"Legend","basePrice":10,"retired":true},{"id":99,"name":"Patrick Vieira","position":"CDM","club":"Retired","country":"France","overall":91,"pace":0,"shooting":78,"passing":74,"dribbling":88,"defending":78,"physical":88,"stamina":91,"tier":"Legend","basePrice":10,"retired":true},{"id":100,"name":"Eric Cantona","position":"ST","club":"Retired","country":"France","overall":91,"pace":0,"shooting":76,"passing":92,"dribbling":91,"defending":89,"physical":58,"stamina":80,"tier":"Legend","basePrice":10,"retired":true},{"id":101,"name":"George Best","position":"RW","club":"Retired","country":"Northern Ireland","overall":94,"pace":0,"shooting":95,"passing":90,"dribbling":94,"defending":98,"physical":35,"stamina":74,"tier":"Legend","basePrice":10,"retired":true},{"id":102,"name":"Johan Cruyff","position":"ST","club":"Retired","country":"Netherlands","overall":97,"pace":0,"shooting":94,"passing":96,"dribbling":99,"defending":99,"physical":44,"stamina":80,"tier":"Legend","basePrice":11,"retired":true},{"id":103,"name":"Diego Maradona","position":"AM","club":"Retired","country":"Argentina","overall":97,"pace":0,"shooting":91,"passing":94,"dribbling":99,"defending":99,"physical":39,"stamina":74,"tier":"Legend","basePrice":11,"retired":true},{"id":104,"name":"Pele","position":"ST","club":"Retired","country":"Brazil","overall":98,"pace":0,"shooting":93,"passing":99,"dribbling":98,"defending":99,"physical":48,"stamina":88,"tier":"Legend","basePrice":11,"retired":true}];
-const roundPositions=["GK","RB","CB","CB","LB","CDM","CM","CM","LW","RW","ST"];
-const category={GK:"حراسة",RB:"دفاع",CB:"دفاع",LB:"دفاع",CDM:"وسط",CM:"وسط",LW:"هجوم",RW:"هجوم",ST:"هجوم"};
-const aliases={"Kylian Mbappe":"Kylian Mbappé","Vinicius Junior":"Vinícius Júnior","Mohamed Salah":"Mohamed Salah","Pele":"Pelé","Kaka":"Kaká"};
-const mime={".html":"text/html; charset=utf-8",".js":"text/javascript",".css":"text/css",".json":"application/json",".png":"image/png",".jpg":"image/jpeg",".jpeg":"image/jpeg",".svg":"image/svg+xml"};
-function roomCode(){let s="";do{s=Math.random().toString(36).slice(2,6).toUpperCase()}while(rooms.has(s));return s}
-function publicState(r){const pos=(r.roundPositions||roundPositions)[r.round-1];return {phase:r.phase,round:r.round,totalRounds:r.totalRounds||11,bid:r.bid,highest:r.highest,turn:r.turn||null,endsAt:r.endsAt,current:r.current,bids:r.bids,roundPosition:pos,roundLabel:category[pos],mode:r.mode,players:Object.fromEntries([...r.players].map(([id,p])=>[id,{name:p.name,photo:p.photo||"",budget:p.budget,team:p.team}]))}}
-function broadcast(r,msg){for(const c of r.clients)if(c.readyState===1)c.send(JSON.stringify(msg))}
-function pickForPosition(r,pos){const available=players.filter(p=>!r.used.has(p.id)&&p.position===pos);if(!available.length)return null;const weights=available.map(p=>p.tier==="Legend"?.45:p.tier==="Elite"?1:p.tier==="Strong"?1.35:1.6);let total=weights.reduce((a,b)=>a+b,0),x=Math.random()*total;for(let i=0;i<available.length;i++){x-=weights[i];if(x<=0)return available[i]}return available[0]}
-function startRound(r){const pos=(r.roundPositions||roundPositions)[r.round-1],p=pickForPosition(r,pos);if(!p){finishGame(r);return}r.used.add(p.id);r.current=p;r.bid=1;r.highest=null;r.bids=[];r.endsAt=Date.now()+20000;r.skipUsed=new Set();const ids=[...r.players.keys()].filter(x=>(r.players.get(x)?.budget||0)>=1);if(!ids.length){finishRound(r);return}r.turn=ids[Math.floor(Math.random()*ids.length)];broadcast(r,{type:"state",state:publicState(r)});clearTimeout(r.timer);r.timer=setTimeout(()=>finishRound(r),20100)}
-function finishRound(r){
-  if(r.phase!=="auction")return;
-  clearTimeout(r.timer);
-  let winnerId=r.highest;
-  if(!winnerId){const ids=[...r.players.keys()];winnerId=ids[Math.floor(Math.random()*ids.length)]}
-  const winner=r.players.get(winnerId),loserId=[...r.players.keys()].find(x=>x!==winnerId);
-  let replacement=null;
-  if(winner&&winner.budget>=r.bid){
-    winner.budget-=r.bid;
-    winner.team.push(r.current.id);
-    if(loserId){
-      replacement=pickForPosition(r,r.current.position);
-      // If that exact position is exhausted, give the skipped player the best unused player.
-      if(!replacement){
-        const fallback=players.filter(p=>!r.used.has(p.id)).sort((a,b)=>b.overall-a.overall)[0];
-        replacement=fallback||null;
-      }
-      if(replacement){
-        r.used.add(replacement.id);
-        r.players.get(loserId).team.push(replacement.id);
-      }
-    }
-  }
-  const loser=loserId?r.players.get(loserId):null;
-  const summary={
-    winnerId:winnerId||null,loserId:loserId||null,player:r.current,
-    replacement:replacement?{player:replacement,reason:"skip"}:null,
-    price:winner?r.bid:0,winnerName:winner?.name||"—",loserName:loser?.name||"—"
+
+let profiles={};
+
+try{
+  profiles=JSON.parse(fs.readFileSync(profilesFile,"utf8"));
+}catch(e){
+  profiles={};
+}
+
+function saveProfiles(){
+  try{
+    fs.writeFileSync(
+      profilesFile,
+      JSON.stringify(profiles,null,2)
+    );
+  }catch(e){}
+}
+
+function profileKey(p){
+  return p.profileId||p.name||"لاعب";
+}
+
+function touchProfile(p){
+
+  const k=profileKey(p);
+
+  profiles[k]||={
+    name:p.name||"لاعب",
+    photo:p.photo||"",
+    matches:0,
+    wins:0,
+    losses:0,
+    draws:0,
+    points:0
   };
-  broadcast(r,{type:"roundEnd",...summary});
-  r.round++;
-  if(r.round>(r.totalRounds||11)){
-    // Keep the final auction-result screen visible for the same 4-second pause,
-    // then show the dedicated match-simulation screen for another 4 seconds.
-    setTimeout(()=>{
-      broadcast(r,{type:"matchPreparing",seconds:4});
-      setTimeout(()=>finishGame(r),4000);
-    },4000);
+
+  profiles[k].name=p.name||profiles[k].name;
+  profiles[k].photo=p.photo||profiles[k].photo||"";
+
+  return profiles[k];
+}
+
+function leaderboard(){
+
+  return Object.entries(profiles)
+    .map(([id,p])=>({
+      id,
+      ...p
+    }))
+    .sort(
+      (a,b)=>
+        b.points-a.points||
+        b.wins-a.wins||
+        a.losses-b.losses
+    );
+}
+
+function publicRooms(){
+
+  return [...rooms.entries()]
+    .filter(([_,r])=>r.phase==="lobby")
+    .map(([code,r])=>{
+
+      const host=[...r.players.values()][0];
+
+      return{
+        code,
+        owner:host?.name||"لاعب",
+        mode:r.mode,
+        teamSize:r.teamSize,
+        budget:r.startBudget,
+        count:r.players.size
+      };
+    });
+}
+
+function broadcastRooms(){
+
+  const msg=JSON.stringify({
+    type:"publicRooms",
+    rooms:publicRooms()
+  });
+
+  for(const client of wss.clients){
+
+    if(client.readyState===1){
+      client.send(msg);
+    }
+
+  }
+}
+
+/* =========================================
+   قاعدة اللاعبين
+   ========================================= */
+
+const players=[];
+
+function generatedPlayerStats(
+  name,
+  position,
+  overall,
+  extra={}
+){
+
+  const level=overall;
+
+  let pace=level;
+  let shooting=level;
+  let passing=level;
+  let dribbling=level;
+  let defending=level;
+  let physical=level;
+  let stamina=level;
+
+  if(position==="GK"){
+
+    pace=Math.max(30,level-30);
+    shooting=Math.max(15,level-45);
+    passing=Math.max(35,level-25);
+    dribbling=Math.max(30,level-28);
+    defending=Math.min(99,level+5);
+    physical=Math.min(99,level+3);
+    stamina=Math.min(99,level+1);
+
+  }
+
+  if(["CB","RB","LB"].includes(position)){
+
+    pace=Math.min(99,level+8);
+    shooting=Math.max(25,level-20);
+    passing=level;
+    dribbling=Math.max(35,level-10);
+    defending=Math.min(99,level+10);
+    physical=Math.min(99,level+8);
+    stamina=Math.min(99,level+6);
+
+  }
+
+  if(["CDM","CM","AM"].includes(position)){
+
+    pace=Math.min(99,level+3);
+    shooting=Math.min(99,level+2);
+    passing=Math.min(99,level+9);
+    dribbling=Math.min(99,level+7);
+    defending=position==="CDM"
+      ?Math.min(99,level+7)
+      :Math.max(35,level-5);
+
+    physical=Math.min(99,level+3);
+    stamina=Math.min(99,level+6);
+  }
+
+  if(["LW","RW"].includes(position)){
+
+    pace=Math.min(99,level+12);
+    shooting=Math.min(99,level+7);
+    passing=Math.min(99,level+4);
+    dribbling=Math.min(99,level+10);
+    defending=Math.max(20,level-25);
+    physical=Math.max(35,level-8);
+    stamina=Math.min(99,level+5);
+  }
+
+  if(position==="ST"){
+
+    pace=Math.min(99,level+8);
+    shooting=Math.min(99,level+12);
+    passing=Math.max(35,level-4);
+    dribbling=Math.min(99,level+5);
+    defending=Math.max(15,level-35);
+    physical=Math.min(99,level+7);
+    stamina=Math.min(99,level+4);
+  }
+
+  return{
+    pace,
+    shooting,
+    passing,
+    dribbling,
+    defending,
+    physical,
+    stamina,
+    ...extra
+  };
+}
+
+let nextPlayerId=1;
+
+function addPlayer(
+  name,
+  position,
+  club,
+  country,
+  overall,
+  tier="Medium",
+  extra={}
+){
+
+  players.push({
+
+    id:nextPlayerId++,
+
+    name,
+    position,
+    club,
+    country,
+    overall,
+
+    ...generatedPlayerStats(
+      name,
+      position,
+      overall,
+      extra
+    ),
+
+    tier,
+
+    basePrice:
+      overall>=90?10:
+      overall>=85?8:
+      overall>=80?6:
+      overall>=75?4:
+      overall>=70?3:
+      2,
+
+    retired:false
+  });
+}
+
+/* =========================================
+   لاعبين نخبة
+   ========================================= */
+
+[
+  ["Kylian Mbappe","ST","Real Madrid","France",91,"Elite"],
+  ["Erling Haaland","ST","Manchester City","Norway",91,"Elite"],
+  ["Vinicius Junior","LW","Real Madrid","Brazil",90,"Elite"],
+  ["Jude Bellingham","CM","Real Madrid","England",90,"Elite"],
+  ["Mohamed Salah","RW","Liverpool","Egypt",89,"Elite"],
+  ["Harry Kane","ST","Bayern Munich","England",89,"Elite"],
+  ["Rodri","CDM","Manchester City","Spain",90,"Elite"],
+  ["Kevin De Bruyne","CM","Manchester City","Belgium",88,"Elite"],
+  ["Lamine Yamal","RW","Barcelona","Spain",89,"Elite"],
+  ["Bukayo Saka","RW","Arsenal","England",88,"Elite"],
+  ["Phil Foden","AM","Manchester City","England",88,"Elite"],
+  ["Florian Wirtz","AM","Liverpool","Germany",88,"Elite"],
+  ["Pedri","CM","Barcelona","Spain",87,"Strong"],
+  ["Federico Valverde","CM","Real Madrid","Uruguay",88,"Elite"],
+  ["Martin Odegaard","AM","Arsenal","Norway",87,"Strong"],
+  ["Declan Rice","CDM","Arsenal","England",87,"Strong"],
+  ["William Saliba","CB","Arsenal","France",87,"Strong"],
+  ["Virgil van Dijk","CB","Liverpool","Netherlands",87,"Strong"],
+  ["Antonio Rudiger","CB","Real Madrid","Germany",86,"Strong"],
+  ["Alisson Becker","GK","Liverpool","Brazil",89,"Elite"],
+  ["Thibaut Courtois","GK","Real Madrid","Belgium",89,"Elite"],
+  ["Jan Oblak","GK","Atletico Madrid","Slovenia",87,"Strong"],
+  ["Achraf Hakimi","RB","PSG","Morocco",86,"Strong"],
+  ["Theo Hernandez","LB","AC Milan","France",86,"Strong"],
+  ["Rafael Leao","LW","AC Milan","Portugal",86,"Strong"],
+  ["Khvicha Kvaratskhelia","LW","PSG","Georgia",86,"Strong"],
+  ["Nico Williams","LW","Athletic Club","Spain",85,"Strong"],
+  ["Ousmane Dembele","RW","PSG","France",87,"Strong"],
+  ["Lautaro Martinez","ST","Inter","Argentina",88,"Elite"],
+  ["Victor Osimhen","ST","Galatasaray","Nigeria",86,"Strong"],
+  ["Robert Lewandowski","ST","Barcelona","Poland",88,"Elite"],
+  ["Antoine Griezmann","AM","Atletico Madrid","France",87,"Strong"],
+  ["Bernardo Silva","AM","Manchester City","Portugal",87,"Strong"],
+  ["Bruno Fernandes","AM","Manchester United","Portugal",87,"Strong"],
+  ["Joshua Kimmich","CDM","Bayern Munich","Germany",86,"Strong"],
+  ["Trent Alexander-Arnold","RB","Liverpool","England",86,"Strong"],
+  ["Alphonso Davies","LB","Bayern Munich","Canada",84,"Strong"],
+  ["Gavi","CM","Barcelona","Spain",83,"Strong"],
+  ["Luis Diaz","LW","Liverpool","Colombia",84,"Strong"],
+  ["Cole Palmer","AM","Chelsea","England",86,"Strong"],
+  ["Jamal Musiala","AM","Bayern Munich","Germany",88,"Elite"],
+  ["Ruben Dias","CB","Manchester City","Portugal",86,"Strong"],
+  ["Marquinhos","CB","PSG","Brazil",86,"Strong"],
+  ["Mike Maignan","GK","AC Milan","France",87,"Strong"],
+  ["Gianluigi Donnarumma","GK","PSG","Italy",89,"Elite"]
+].forEach(p=>addPlayer(...p));
+
+/* =========================================
+   الدوري الإنجليزي
+   لاعبين أقوياء ومتوسطين
+   ========================================= */
+
+[
+  ["Dominik Szoboszlai","CM","Liverpool","Hungary",82,"Strong"],
+  ["Alexis Mac Allister","CM","Liverpool","Argentina",84,"Strong"],
+  ["Ryan Gravenberch","CM","Liverpool","Netherlands",80,"Medium"],
+  ["Curtis Jones","CM","Liverpool","England",78,"Medium"],
+  ["Cody Gakpo","LW","Liverpool","Netherlands",81,"Strong"],
+  ["Darwin Nunez","ST","Liverpool","Uruguay",79,"Medium"],
+  ["Diogo Jota","ST","Liverpool","Portugal",82,"Strong"],
+  ["Ibrahima Konate","CB","Liverpool","France",82,"Strong"],
+  ["Andrew Robertson","LB","Liverpool","Scotland",81,"Strong"],
+
+  ["Martinelli","LW","Arsenal","Brazil",82,"Strong"],
+  ["Kai Havertz","ST","Arsenal","Germany",82,"Strong"],
+  ["Gabriel Jesus","ST","Arsenal","Brazil",80,"Medium"],
+  ["Thomas Partey","CDM","Arsenal","Ghana",80,"Medium"],
+  ["Jorginho","CM","Arsenal","Italy",78,"Medium"],
+  ["Ben White","RB","Arsenal","England",82,"Strong"],
+  ["Gabriel Magalhaes","CB","Arsenal","Brazil",83,"Strong"],
+
+  ["Jeremy Doku","LW","Manchester City","Belgium",80,"Medium"],
+  ["Savinho","RW","Manchester City","Brazil",78,"Medium"],
+  ["Mateo Kovacic","CM","Manchester City","Croatia",80,"Medium"],
+  ["John Stones","CB","Manchester City","England",82,"Strong"],
+  ["Nathan Ake","CB","Manchester City","Netherlands",81,"Strong"],
+
+  ["Alejandro Garnacho","LW","Manchester United","Argentina",79,"Medium"],
+  ["Rasmus Hojlund","ST","Manchester United","Denmark",78,"Medium"],
+  ["Kobbie Mainoo","CM","Manchester United","England",78,"Medium"],
+  ["Mason Mount","AM","Manchester United","England",77,"Medium"],
+  ["Lisandro Martinez","CB","Manchester United","Argentina",81,"Strong"],
+  ["Diogo Dalot","RB","Manchester United","Portugal",79,"Medium"],
+
+  ["Son Heung-min","LW","Tottenham","South Korea",86,"Strong"],
+  ["James Maddison","AM","Tottenham","England",82,"Strong"],
+  ["Brennan Johnson","RW","Tottenham","Wales",77,"Medium"],
+  ["Richarlison","ST","Tottenham","Brazil",78,"Medium"],
+  ["Cristian Romero","CB","Tottenham","Argentina",82,"Strong"],
+
+  ["Ollie Watkins","ST","Aston Villa","England",83,"Strong"],
+  ["Morgan Rogers","AM","Aston Villa","England",76,"Medium"],
+  ["Youri Tielemans","CM","Aston Villa","Belgium",80,"Medium"],
+  ["Ezri Konsa","CB","Aston Villa","England",78,"Medium"],
+
+  ["Jarrod Bowen","RW","West Ham","England",81,"Strong"],
+  ["Mohammed Kudus","AM","West Ham","Ghana",80,"Medium"],
+  ["Lucas Paqueta","AM","West Ham","Brazil",81,"Strong"],
+
+  ["Anthony Gordon","LW","Newcastle","England",81,"Strong"],
+  ["Alexander Isak","ST","Newcastle","Sweden",84,"Strong"],
+  ["Bruno Guimaraes","CM","Newcastle","Brazil",83,"Strong"],
+  ["Sandro Tonali","CM","Newcastle","Italy",80,"Medium"]
+].forEach(p=>addPlayer(...p));
+
+/* =========================================
+   الدوري الإسباني
+   ========================================= */
+
+[
+  ["Ferran Torres","RW","Barcelona","Spain",79,"Medium"],
+  ["Dani Olmo","AM","Barcelona","Spain",82,"Strong"],
+  ["Frenkie de Jong","CM","Barcelona","Netherlands",85,"Strong"],
+  ["Alejandro Balde","LB","Barcelona","Spain",78,"Medium"],
+  ["Pau Cubarsi","CB","Barcelona","Spain",78,"Medium"],
+  ["Inigo Martinez","CB","Barcelona","Spain",80,"Medium"],
+
+  ["Rodrygo","RW","Real Madrid","Brazil",85,"Strong"],
+  ["Brahim Diaz","RW","Real Madrid","Morocco",80,"Medium"],
+  ["Eduardo Camavinga","CM","Real Madrid","France",84,"Strong"],
+  ["Aurelien Tchouameni","CDM","Real Madrid","France",85,"Strong"],
+  ["Ferland Mendy","LB","Real Madrid","France",80,"Medium"],
+  ["Dani Carvajal","RB","Real Madrid","Spain",84,"Strong"],
+
+  ["Julian Alvarez","ST","Atletico Madrid","Argentina",84,"Strong"],
+  ["Pablo Barrios","CM","Atletico Madrid","Spain",77,"Medium"],
+  ["Nahuel Molina","RB","Atletico Madrid","Argentina",78,"Medium"],
+  ["Jose Gimenez","CB","Atletico Madrid","Uruguay",82,"Strong"],
+
+  ["Takefusa Kubo","RW","Real Sociedad","Japan",80,"Medium"],
+  ["Mikel Oyarzabal","ST","Real Sociedad","Spain",81,"Strong"],
+  ["Martin Zubimendi","CDM","Real Sociedad","Spain",83,"Strong"],
+
+  ["Ayoze Perez","LW","Villarreal","Spain",78,"Medium"],
+  ["Gerard Moreno","ST","Villarreal","Spain",81,"Strong"],
+
+  ["Iago Aspas","ST","Celta Vigo","Spain",78,"Medium"],
+  ["Isco","AM","Real Betis","Spain",82,"Strong"],
+  ["Sergio Canales","AM","Monterrey","Spain",79,"Medium"]
+].forEach(p=>addPlayer(...p));
+
+/* =========================================
+   الدوري الإيطالي
+   ========================================= */
+
+[
+  ["Marcus Thuram","ST","Inter","France",83,"Strong"],
+  ["Hakan Calhanoglu","CM","Inter","Turkey",84,"Strong"],
+  ["Nicolo Barella","CM","Inter","Italy",85,"Strong"],
+  ["Alessandro Bastoni","CB","Inter","Italy",85,"Strong"],
+  ["Federico Dimarco","LB","Inter","Italy",82,"Strong"],
+
+  ["Dusan Vlahovic","ST","Juventus","Serbia",82,"Strong"],
+  ["Kenan Yildiz","LW","Juventus","Turkey",78,"Medium"],
+  ["Manuel Locatelli","CDM","Juventus","Italy",80,"Medium"],
+  ["Bremer","CB","Juventus","Brazil",83,"Strong"],
+
+  ["Christian Pulisic","RW","AC Milan","USA",82,"Strong"],
+  ["Tijjani Reijnders","CM","AC Milan","Netherlands",82,"Strong"],
+  ["Fikayo Tomori","CB","AC Milan","England",81,"Strong"],
+
+  ["Paulo Dybala","AM","Roma","Argentina",83,"Strong"],
+  ["Artem Dovbyk","ST","Roma","Ukraine",80,"Medium"],
+  ["Lorenzo Pellegrini","CM","Roma","Italy",79,"Medium"],
+
+  ["Romelu Lukaku","ST","Napoli","Belgium",81,"Strong"],
+  ["Stanislav Lobotka","CDM","Napoli","Slovakia",81,"Strong"],
+  ["Alessandro Buongiorno","CB","Napoli","Italy",80,"Medium"],
+
+  ["Ademola Lookman","LW","Atalanta","Nigeria",82,"Strong"],
+  ["Charles De Ketelaere","AM","Atalanta","Belgium",80,"Medium"]
+].forEach(p=>addPlayer(...p));
+
+/* =========================================
+   الدوري الفرنسي
+   ========================================= */
+
+[
+  ["Bradley Barcola","LW","PSG","France",81,"Strong"],
+  ["Warren Zaire-Emery","CM","PSG","France",81,"Strong"],
+  ["Joao Neves","CM","PSG","Portugal",84,"Strong"],
+  ["Goncalo Ramos","ST","PSG","Portugal",80,"Medium"],
+  ["Nuno Mendes","LB","PSG","Portugal",83,"Strong"],
+
+  ["Jonathan David","ST","Lille","Canada",81,"Strong"],
+  ["Edon Zhegrova","RW","Lille","Kosovo",77,"Medium"],
+  ["Benjamin Andre","CDM","Lille","France",76,"Medium"],
+
+  ["Pierre-Emerick Aubameyang","ST","Marseille","Gabon",80,"Medium"],
+  ["Mason Greenwood","RW","Marseille","England",81,"Strong"],
+
+  ["Alexandre Lacazette","ST","Lyon","France",78,"Medium"],
+  ["Rayan Cherki","AM","Lyon","France",78,"Medium"]
+].forEach(p=>addPlayer(...p));
+
+/* =========================================
+   الدوري البرتغالي
+   ========================================= */
+
+[
+  ["Viktor Gyokeres","ST","Sporting CP","Sweden",85,"Strong"],
+  ["Pedro Goncalves","AM","Sporting CP","Portugal",81,"Strong"],
+  ["Morten Hjulmand","CDM","Sporting CP","Denmark",80,"Medium"],
+
+  ["Angel Di Maria","RW","Benfica","Argentina",80,"Medium"],
+  ["Orkun Kokcu","CM","Benfica","Turkey",80,"Medium"],
+  ["Antonio Silva","CB","Benfica","Portugal",79,"Medium"],
+
+  ["Samu Omorodion","ST","Porto","Spain",78,"Medium"],
+  ["Alan Varela","CDM","Porto","Argentina",79,"Medium"],
+  ["Francisco Moura","LB","Porto","Portugal",75,"Medium"]
+].forEach(p=>addPlayer(...p));
+
+/* =========================================
+   الدوري الألماني
+   ========================================= */
+
+[
+  ["Leroy Sane","RW","Bayern Munich","Germany",84,"Strong"],
+  ["Serge Gnabry","RW","Bayern Munich","Germany",81,"Strong"],
+  ["Leon Goretzka","CM","Bayern Munich","Germany",82,"Strong"],
+  ["Dayot Upamecano","CB","Bayern Munich","France",82,"Strong"],
+
+  ["Xavi Simons","AM","RB Leipzig","Netherlands",82,"Strong"],
+  ["Benjamin Sesko","ST","RB Leipzig","Slovenia",81,"Strong"],
+  ["Lois Openda","ST","RB Leipzig","Belgium",82,"Strong"],
+
+  ["Victor Boniface","ST","Bayer Leverkusen","Nigeria",80,"Medium"],
+  ["Alejandro Grimaldo","LB","Bayer Leverkusen","Spain",83,"Strong"],
+  ["Jeremie Frimpong","RB","Bayer Leverkusen","Netherlands",83,"Strong"],
+  ["Robert Andrich","CDM","Bayer Leverkusen","Germany",78,"Medium"],
+
+  ["Serhou Guirassy","ST","Borussia Dortmund","Guinea",82,"Strong"],
+  ["Karim Adeyemi","LW","Borussia Dortmund","Germany",78,"Medium"]
+].forEach(p=>addPlayer(...p));
+
+/* =========================================
+   الدوري المصري
+   ========================================= */
+
+[
+  ["Emam Ashour","CM","Al Ahly","Egypt",78,"Medium"],
+  ["Ahmed Sayed Zizo","RW","Zamalek","Egypt",79,"Medium"],
+  ["Mohamed El Shenawy","GK","Al Ahly","Egypt",78,"Medium"],
+  ["Mohamed Abdelmonem","CB","Nice","Egypt",78,"Medium"],
+  ["Mostafa Mohamed","ST","Nantes","Egypt",77,"Medium"],
+  ["Trezeguet","LW","Al Rayyan","Egypt",79,"Medium"],
+  ["Ramadan Sobhi","LW","Pyramids","Egypt",76,"Medium"],
+  ["Marwan عطية","CDM","Al Ahly","Egypt",75,"Medium"],
+  ["Hussein El Shahat","RW","Al Ahly","Egypt",75,"Medium"],
+  ["Mohamed Hany","RB","Al Ahly","Egypt",74,"Medium"],
+  ["Yasser Ibrahim","CB","Al Ahly","Egypt",75,"Medium"],
+  ["Ahmed فتوح","LB","Zamalek","Egypt",75,"Medium"],
+  ["Mostafa Shalaby","LW","Zamalek","Egypt",73,"Medium"],
+  ["Nasser Maher","AM","Zamalek","Egypt",74,"Medium"]
+].forEach(p=>addPlayer(...p));
+
+/* =========================================
+   لاعبين متوسطين وضعاف
+   هؤلاء مهمون للتشويق وعدم ظهور النجوم فقط
+   ========================================= */
+
+[
+  ["Rayan Ait-Nouri","LB","Wolves","Algeria",76,"Medium"],
+  ["Joao Gomes","CM","Wolves","Brazil",75,"Medium"],
+  ["Matheus Cunha","ST","Wolves","Brazil",79,"Medium"],
+  ["Morgan Gibbs-White","AM","Nottingham Forest","England",77,"Medium"],
+  ["Callum Hudson-Odoi","LW","Nottingham Forest","England",75,"Medium"],
+  ["Chris Wood","ST","Nottingham Forest","New Zealand",74,"Medium"],
+  ["Antoine Semenyo","RW","Bournemouth","Ghana",74,"Medium"],
+  ["Dominic Solanke","ST","Tottenham","England",78,"Medium"],
+  ["Eberechi Eze","AM","Crystal Palace","England",81,"Strong"],
+  ["Michael Olise","RW","Bayern Munich","France",83,"Strong"],
+  ["Jean-Philippe Mateta","ST","Crystal Palace","France",73,"Medium"],
+
+  ["Abel Ruiz","ST","Girona","Spain",72,"Medium"],
+  ["Bryan Zaragoza","LW","Osasuna","Spain",73,"Medium"],
+  ["Aleix Garcia","CM","Bayer Leverkusen","Spain",76,"Medium"],
+  ["Javi Guerra","CM","Valencia","Spain",75,"Medium"],
+
+  ["Riccardo Orsolini","RW","Bologna","Italy",78,"Medium"],
+  ["Andrea Pinamonti","ST","Genoa","Italy",73,"Medium"],
+  ["Tommaso Baldanzi","AM","Roma","Italy",72,"Medium"],
+  ["Davide Frattesi","CM","Inter","Italy",78,"Medium"],
+
+  ["Elye Wahi","ST","Marseille","France",74,"Medium"],
+  ["Akliouche","AM","Monaco","France",76,"Medium"],
+  ["Amine Gouiri","ST","Rennes","Algeria",75,"Medium"],
+
+  ["Francisco Conceicao","RW","Juventus","Portugal",77,"Medium"],
+  ["Tiago Gouveia","RW","Benfica","Portugal",71,"Weak"],
+  ["Andre Franco","CM","Porto","Portugal",70,"Weak"],
+
+  ["Andreas Skov Olsen","RW","Club Brugge","Denmark",74,"Medium"],
+  ["Santiago Gimenez","ST","AC Milan","Mexico",79,"Medium"],
+  ["Luis Sinisterra","LW","Bournemouth","Colombia",73,"Medium"],
+
+  ["Facundo Buonanotte","AM","Leicester","Argentina",72,"Medium"],
+  ["Carlos Baleba","CDM","Brighton","Cameroon",74,"Medium"],
+  ["Jack Hinshelwood","CM","Brighton","England",70,"Weak"],
+  ["Lewis Hall","LB","Newcastle","England",73,"Medium"],
+
+  ["Gift Orban","ST","Lyon","Nigeria",71,"Weak"],
+  ["Kevin Schade","RW","Brentford","Germany",72,"Medium"],
+  ["Jacob Ramsey","CM","Aston Villa","England",76,"Medium"],
+
+  ["Yankuba Minteh","RW","Brighton","Gambia",72,"Medium"],
+  ["Samuel Iling-Junior","LW","Aston Villa","England",70,"Weak"],
+  ["Oscar Bobb","RW","Manchester City","Norway",74,"Medium"],
+
+  ["Mika Biereth","ST","Monaco","Denmark",72,"Medium"],
+  ["Roony Bardghji","RW","Barcelona","Sweden",70,"Weak"],
+  ["Assan Ouedraogo","CM","RB Leipzig","Germany",69,"Weak"]
+].forEach(p=>addPlayer(...p));
+
+/* =========================================
+   أساطير - احتمال ظهور قليل جدًا
+   ========================================= */
+
+[
+  ["Lionel Messi","RW","Inter Miami","Argentina",97],
+  ["Cristiano Ronaldo","ST","Al Nassr","Portugal",94],
+  ["Zinedine Zidane","AM","Retired","France",96],
+  ["Ronaldinho","AM","Retired","Brazil",96],
+  ["Ronaldo Nazario","ST","Retired","Brazil",96],
+  ["Thierry Henry","ST","Retired","France",95],
+  ["Xavi","CM","Retired","Spain",94],
+  ["Andres Iniesta","CM","Retired","Spain",94],
+  ["Andrea Pirlo","CM","Retired","Italy",93],
+  ["Paolo Maldini","CB","Retired","Italy",95],
+  ["Franco Baresi","CB","Retired","Italy",94],
+  ["Gianluigi Buffon","GK","Retired","Italy",94],
+  ["Iker Casillas","GK","Retired","Spain",93],
+  ["Didier Drogba","ST","Retired","Ivory Coast",94],
+  ["Samuel Eto'o","ST","Retired","Cameroon",94],
+  ["Kaka","AM","Retired","Brazil",93],
+  ["Steven Gerrard","CM","Retired","England",92],
+  ["Frank Lampard","CM","Retired","England",91],
+  ["David Beckham","RW","Retired","England",90],
+  ["Arjen Robben","RW","Retired","Netherlands",92],
+  ["Zlatan Ibrahimovic","ST","Retired","Sweden",93],
+  ["Luis Figo","RW","Retired","Portugal",92],
+  ["Fabio Cannavaro","CB","Retired","Italy",92],
+  ["Cafu","RB","Retired","Brazil",92],
+  ["Roberto Carlos","LB","Retired","Brazil",92],
+  ["Clarence Seedorf","CM","Retired","Netherlands",91],
+  ["Patrick Vieira","CDM","Retired","France",91],
+  ["Eric Cantona","ST","Retired","France",91],
+  ["George Best","RW","Retired","Northern Ireland",94],
+  ["Johan Cruyff","ST","Retired","Netherlands",97],
+  ["Diego Maradona","AM","Retired","Argentina",97],
+  ["Pele","ST","Retired","Brazil",98]
+].forEach(([name,position,club,country,overall])=>{
+
+  const player={
+    id:nextPlayerId++,
+    name,
+    position,
+    club,
+    country,
+    overall,
+    ...generatedPlayerStats(
+      name,
+      position,
+      overall
+    ),
+    tier:"Legend",
+    basePrice:10,
+    retired:true
+  };
+
+  players.push(player);
+});
+
+/* =========================================
+   مراكز الجولات
+   ========================================= */
+
+const roundPositions=[
+  "GK",
+  "RB",
+  "CB",
+  "CB",
+  "LB",
+  "CDM",
+  "CM",
+  "CM",
+  "LW",
+  "RW",
+  "ST"
+];
+
+const category={
+  GK:"حراسة",
+  RB:"دفاع",
+  CB:"دفاع",
+  LB:"دفاع",
+  CDM:"وسط",
+  CM:"وسط",
+  AM:"وسط",
+  LW:"هجوم",
+  RW:"هجوم",
+  ST:"هجوم"
+};
+
+const aliases={
+  "Gavi":"Gavi",
+  "Luis Diaz":"Luis Díaz",
+  "Kylian Mbappe":"Kylian Mbappé",
+  "Vinicius Junior":"Vinícius Júnior",
+  "Mohamed Salah":"Mohamed Salah",
+  "Pele":"Pelé",
+  "Kaka":"Kaká"
+};
+
+const mime={
+  ".html":"text/html; charset=utf-8",
+  ".js":"text/javascript",
+  ".css":"text/css",
+  ".json":"application/json",
+  ".png":"image/png",
+  ".jpg":"image/jpeg",
+  ".jpeg":"image/jpeg",
+  ".svg":"image/svg+xml"
+};
+
+function roomCode(){
+
+  let s="";
+
+  do{
+    s=Math.random()
+      .toString(36)
+      .slice(2,6)
+      .toUpperCase();
+  }while(rooms.has(s));
+
+  return s;
+}
+
+function publicState(r){
+
+  const pos=
+    (r.roundPositions||roundPositions)
+      [r.round-1];
+
+  return{
+
+    phase:r.phase,
+    round:r.round,
+    totalRounds:r.totalRounds||11,
+
+    bid:r.bid,
+    highest:r.highest,
+    turn:r.turn||null,
+
+    endsAt:r.endsAt,
+
+    current:r.current,
+
+    bids:r.bids,
+
+    roundPosition:pos,
+
+    roundLabel:category[pos],
+
+    mode:r.mode,
+
+    players:Object.fromEntries(
+
+      [...r.players]
+        .map(([id,p])=>[
+
+          id,
+
+          {
+            name:p.name,
+            photo:p.photo||"",
+            budget:p.budget,
+            team:p.team
+          }
+
+        ])
+
+    )
+
+  };
+}
+
+function broadcast(r,msg){
+
+  for(const c of r.clients){
+
+    if(c.readyState===1){
+      c.send(JSON.stringify(msg));
+    }
+
+  }
+}
+
+/* =========================================
+   اختيار اللاعب
+   المتوسط والضعيف احتمالهما أعلى
+   ========================================= */
+
+function pickForPosition(r,pos){
+
+  const available=players.filter(
+    p=>
+      !r.used.has(p.id)&&
+      p.position===pos
+  );
+
+  if(!available.length){
+    return null;
+  }
+
+  const weights=available.map(p=>{
+
+    if(p.tier==="Legend"){
+      return 0.08;
+    }
+
+    if(p.tier==="Elite"){
+      return 0.35;
+    }
+
+    if(p.tier==="Strong"){
+      return 0.90;
+    }
+
+    if(p.tier==="Medium"){
+      return 2.40;
+    }
+
+    if(p.tier==="Weak"){
+      return 2.10;
+    }
+
+    return 1.5;
+  });
+
+  const total=
+    weights.reduce((a,b)=>a+b,0);
+
+  let x=Math.random()*total;
+
+  for(let i=0;i<available.length;i++){
+
+    x-=weights[i];
+
+    if(x<=0){
+      return available[i];
+    }
+
+  }
+
+  return available[0];
+}
+
+function startRound(r){
+
+  const pos=
+    (r.roundPositions||roundPositions)
+      [r.round-1];
+
+  const p=pickForPosition(r,pos);
+
+  if(!p){
+    finishGame(r);
     return;
   }
-  setTimeout(()=>startRound(r),4000);
+
+  r.used.add(p.id);
+
+  r.current=p;
+
+  /* السعر النهائي يبدأ من 1 */
+  r.bid=1;
+
+  r.highest=null;
+
+  r.bids=[];
+
+  r.endsAt=
+    Date.now()+20000;
+
+  r.skipUsed=new Set();
+
+  /* فقط اللاعب الذي معه فلوس يدخل الدور */
+  const ids=[...r.players.keys()]
+    .filter(
+      x=>
+        (r.players.get(x)?.budget||0)>=1
+    );
+
+  if(!ids.length){
+    finishRound(r);
+    return;
+  }
+
+  r.turn=
+    ids[
+      Math.floor(
+        Math.random()*ids.length
+      )
+    ];
+
+  broadcast(r,{
+    type:"state",
+    state:publicState(r)
+  });
+
+  clearTimeout(r.timer);
+
+  r.timer=setTimeout(
+    ()=>finishRound(r),
+    20100
+  );
 }
-function avg(arr,fn){return arr.length?arr.reduce((s,x)=>s+fn(x),0)/arr.length:55}
-function teamRatings(p){
-  const arr=p.team.map(id=>players.find(x=>x.id===id)).filter(Boolean);
-  const by=pos=>arr.filter(x=>x.position===pos);
-  const gk=avg(by("GK"),x=>x.overall);
-  const def=avg(arr.filter(x=>["RB","CB","LB"].includes(x.position)),x=>x.overall);
-  const mid=avg(arr.filter(x=>["CDM","CM","AM"].includes(x.position)),x=>x.overall);
-  const att=avg(arr.filter(x=>["LW","RW","ST","AM"].includes(x.position)),x=>x.overall);
-  const passing=avg(arr,x=>x.passing);
-  const shooting=avg(arr.filter(x=>["LW","RW","ST","AM"].includes(x.position)),x=>x.shooting);
-  const defending=avg(arr.filter(x=>["GK","RB","CB","LB","CDM","CM"].includes(x.position)),x=>x.defending);
-  return {gk,def,mid,att,passing,shooting,defending,overall:avg(arr,x=>x.overall)}
+
+function finishRound(r){
+
+  if(r.phase!=="auction"){
+    return;
+  }
+
+  clearTimeout(r.timer);
+
+  let winnerId=r.highest;
+
+  /* لو محدش زايد
+     اختيار لاعب معه فلوس */
+  if(!winnerId){
+
+    const availableIds=
+      [...r.players.keys()]
+        .filter(
+          id=>
+            (r.players.get(id)?.budget||0)>=1
+        );
+
+    if(availableIds.length){
+
+      winnerId=
+        availableIds[
+          Math.floor(
+            Math.random()*
+            availableIds.length
+          )
+        ];
+    }
+  }
+
+  const winner=
+    winnerId
+      ?r.players.get(winnerId)
+      :null;
+
+  const loserId=
+    [...r.players.keys()]
+      .find(x=>x!==winnerId);
+
+  let replacement=null;
+
+  if(
+    winner&&
+    winner.budget>=r.bid
+  ){
+
+    winner.budget-=r.bid;
+
+    winner.team.push(
+      r.current.id
+    );
+
+    if(loserId){
+
+      replacement=
+        pickForPosition(
+          r,
+          r.current.position
+        );
+
+      if(!replacement){
+
+        const fallback=players
+          .filter(
+            p=>!r.used.has(p.id)
+          )
+          .sort(
+            (a,b)=>
+              b.overall-a.overall
+          )[0];
+
+        replacement=fallback||null;
+      }
+
+      if(replacement){
+
+        r.used.add(
+          replacement.id
+        );
+
+        r.players
+          .get(loserId)
+          .team
+          .push(
+            replacement.id
+          );
+      }
+    }
+  }
+
+  const loser=
+    loserId
+      ?r.players.get(loserId)
+      :null;
+
+  const summary={
+
+    winnerId:winnerId||null,
+
+    loserId:loserId||null,
+
+    player:r.current,
+
+    replacement:
+      replacement
+        ?{
+          player:replacement,
+          reason:"skip"
+        }
+        :null,
+
+    price:winner
+      ?r.bid
+      :0,
+
+    winnerName:
+      winner?.name||"—",
+
+    loserName:
+      loser?.name||"—"
+  };
+
+  broadcast(r,{
+    type:"roundEnd",
+    ...summary
+  });
+
+  r.round++;
+
+  if(
+    r.round>
+    (r.totalRounds||11)
+  ){
+
+    setTimeout(()=>{
+
+      broadcast(r,{
+        type:"matchPreparing",
+        seconds:4
+      });
+
+      setTimeout(
+        ()=>finishGame(r),
+        4000
+      );
+
+    },4000);
+
+    return;
+  }
+
+  setTimeout(
+    ()=>startRound(r),
+    4000
+  );
 }
-function clamp(n,min,max){return Math.max(min,Math.min(max,n))}
-function chooseScorer(arr,seed=0){
-  const preferred=arr.filter(x=>["ST","LW","RW","AM"].includes(x.position));
-  const pool=preferred.length?preferred:arr;
-  if(!pool.length)return null;
-  const ranked=pool.map(x=>({x,score:x.shooting*.55+x.overall*.30+x.passing*.08+x.stamina*.07})).sort((a,b)=>b.score-a.score);
-  return ranked[((seed%ranked.length)+ranked.length)%ranked.length].x;
+/* =========================================
+   محرك محاكاة المباراة الواقعي والعادل
+   ========================================= */
+
+function average(arr){
+
+  if(!arr||!arr.length){
+    return 0;
+  }
+
+  return arr.reduce(
+    (sum,value)=>sum+value,
+    0
+  )/arr.length;
 }
-function squadFingerprint(team){return team.slice().sort((a,b)=>a-b).join("-")}
-function deterministicNoise(seed){let h=2166136261;for(let i=0;i<seed.length;i++){h^=seed.charCodeAt(i);h=Math.imul(h,16777619)}return ((h>>>0)%10000)/10000}
-function teamBalance(arr){
-  if(!arr.length)return 0;
-  const positions=new Set(arr.map(x=>x.position));
-  let score=0;
-  if(positions.has("GK"))score+=1;
-  if([...positions].some(x=>["RB","CB","LB"].includes(x)))score+=1;
-  if([...positions].some(x=>["CDM","CM","AM"].includes(x)))score+=1;
-  if([...positions].some(x=>["LW","RW","ST","AM"].includes(x)))score+=1;
-  return score/4;
+
+function getPlayerById(id){
+
+  return players.find(
+    p=>p.id===id
+  )||null;
 }
+
+function getTeamPlayers(teamIds){
+
+  return teamIds
+    .map(getPlayerById)
+    .filter(Boolean);
+}
+
+/* الحصول على اللاعبين حسب المركز */
+
+function positionPlayers(
+  team,
+  positions
+){
+
+  return team.filter(
+    p=>positions.includes(p.position)
+  );
+}
+
+function bestStatAverage(
+  list,
+  stat,
+  fallback
+){
+
+  if(!list.length){
+    return fallback;
+  }
+
+  return average(
+    list.map(
+      p=>p[stat]||fallback
+    )
+  );
+}
+
+/* =========================================
+   تحليل قوة الفريق
+   ========================================= */
+
+function analyzeTeam(teamIds){
+
+  const team=
+    getTeamPlayers(teamIds);
+
+  const goalkeepers=
+    positionPlayers(
+      team,
+      ["GK"]
+    );
+
+  const defenders=
+    positionPlayers(
+      team,
+      ["RB","CB","LB"]
+    );
+
+  const midfielders=
+    positionPlayers(
+      team,
+      ["CDM","CM","AM"]
+    );
+
+  const attackers=
+    positionPlayers(
+      team,
+      ["LW","RW","ST"]
+    );
+
+  const gk=
+    goalkeepers
+      .sort(
+        (a,b)=>
+          b.overall-a.overall
+      )[0]||null;
+
+  /* =========================
+     حراسة المرمى
+     ========================= */
+
+  let goalkeeper=45;
+
+  if(gk){
+
+    goalkeeper=
+      (
+        gk.overall*0.65+
+        gk.defending*0.20+
+        gk.physical*0.10+
+        gk.passing*0.05
+      );
+  }
+
+  /* =========================
+     الدفاع
+     ========================= */
+
+  let defense=0;
+
+  if(defenders.length){
+
+    defense=
+      average(
+        defenders.map(p=>
+          p.defending*0.55+
+          p.physical*0.20+
+          p.pace*0.15+
+          p.overall*0.10
+        )
+      );
+  }else{
+
+    defense=42;
+  }
+
+  /* =========================
+     الوسط
+     ========================= */
+
+  let midfield=0;
+
+  if(midfielders.length){
+
+    midfield=
+      average(
+        midfielders.map(p=>
+          p.passing*0.40+
+          p.dribbling*0.20+
+          p.stamina*0.15+
+          p.defending*0.10+
+          p.overall*0.15
+        )
+      );
+  }else{
+
+    midfield=42;
+  }
+
+  /* =========================
+     الهجوم
+     ========================= */
+
+  let attack=0;
+
+  if(attackers.length){
+
+    attack=
+      average(
+        attackers.map(p=>
+          p.shooting*0.42+
+          p.pace*0.18+
+          p.dribbling*0.18+
+          p.physical*0.10+
+          p.overall*0.12
+        )
+      );
+  }else{
+
+    attack=40;
+  }
+
+  /* =========================
+     التقييم العام
+     ========================= */
+
+  const overall=
+    average(
+      team.map(
+        p=>p.overall
+      )
+    );
+
+  /* =========================
+     تقييم التوازن
+
+     وجود فريق مليان مهاجمين
+     بدون دفاع أو حارس يعاقبه
+     ========================= */
+
+  let balance=100;
+
+  if(goalkeepers.length===0){
+    balance-=18;
+  }
+
+  if(defenders.length<3){
+    balance-=
+      (3-defenders.length)*7;
+  }
+
+  if(midfielders.length<2){
+    balance-=
+      (2-midfielders.length)*6;
+  }
+
+  if(attackers.length<2){
+    balance-=
+      (2-attackers.length)*4;
+  }
+
+  /*
+    لو الفريق مليان مهاجمين
+    بشكل غير طبيعي
+  */
+
+  if(attackers.length>5){
+
+    balance-=
+      (attackers.length-5)*3;
+  }
+
+  /*
+    لو الفريق عنده حارسين
+    أو عدد غير طبيعي
+  */
+
+  if(goalkeepers.length>2){
+
+    balance-=
+      (goalkeepers.length-2)*2;
+  }
+
+  balance=
+    Math.max(
+      45,
+      Math.min(
+        100,
+        balance
+      )
+    );
+
+  /*
+    القوة النهائية
+
+    الوسط له تأثير كبير
+    لكن الهجوم والدفاع
+    أهم في النتيجة
+  */
+
+  const power=
+    (
+      attack*0.29+
+      midfield*0.24+
+      defense*0.25+
+      goalkeeper*0.14+
+      overall*0.08
+    )
+    *
+    (
+      balance/100
+    );
+
+  return{
+
+    team,
+
+    goalkeeper,
+    defense,
+    midfield,
+    attack,
+
+    overall,
+
+    balance,
+
+    power,
+
+    count:{
+      goalkeepers:
+        goalkeepers.length,
+
+      defenders:
+        defenders.length,
+
+      midfielders:
+        midfielders.length,
+
+      attackers:
+        attackers.length
+    }
+  };
+}
+
+/* =========================================
+   مولد عشوائية طبيعية
+
+   ليس Random لتحديد الفائز
+   بل اختلاف طبيعي داخل المباراة
+   ========================================= */
+
+function normalRandom(){
+
+  let u=0;
+  let v=0;
+
+  while(u===0){
+    u=Math.random();
+  }
+
+  while(v===0){
+    v=Math.random();
+  }
+
+  return Math.sqrt(
+    -2*Math.log(u)
+  )
+  *
+  Math.cos(
+    2*Math.PI*v
+  );
+}
+
+/* =========================================
+   حساب أفضلية المباراة
+   ========================================= */
+
+function calculateMatchAdvantage(
+  home,
+  away
+){
+
+  /*
+    هجوم الفريق
+    ضد دفاع وحارس الخصم
+  */
+
+  const homeAttackVsDefense=
+    home.attack-
+    (
+      away.defense*0.60+
+      away.goalkeeper*0.40
+    );
+
+  const awayAttackVsDefense=
+    away.attack-
+    (
+      home.defense*0.60+
+      home.goalkeeper*0.40
+    );
+
+  /*
+    معركة الوسط
+  */
+
+  const midfieldDifference=
+    home.midfield-
+    away.midfield;
+
+  /*
+    القوة الكلية
+  */
+
+  const powerDifference=
+    home.power-
+    away.power;
+
+  /*
+    التوازن
+  */
+
+  const balanceDifference=
+    home.balance-
+    away.balance;
+
+  const homeAdvantage=
+    homeAttackVsDefense*0.035+
+    midfieldDifference*0.025+
+    powerDifference*0.030+
+    balanceDifference*0.010;
+
+  const awayAdvantage=
+    awayAttackVsDefense*0.035-
+    midfieldDifference*0.025-
+    powerDifference*0.030-
+    balanceDifference*0.010;
+
+  return{
+    homeAdvantage,
+    awayAdvantage,
+    midfieldDifference,
+    powerDifference
+  };
+}
+
+/* =========================================
+   حساب xG
+
+   قوة الفريق هي الأساس
+   والحظ عامل محدود فقط
+   ========================================= */
+
+function calculateXG(
+  attackTeam,
+  defenseTeam,
+  isHome=false
+){
+
+  const advantage=
+    (
+      attackTeam.attack*0.45+
+      attackTeam.midfield*0.25+
+      attackTeam.power*0.15
+    )
+    -
+    (
+      defenseTeam.defense*0.40+
+      defenseTeam.goalkeeper*0.30+
+      defenseTeam.power*0.10
+    );
+
+  /*
+    قيمة xG الأساسية
+  */
+
+  let xg=
+    1.15+
+    advantage*0.045;
+
+  /*
+    الفريق المتوازن
+    يصنع فرصًا أفضل
+  */
+
+  xg+=
+    (
+      attackTeam.balance-
+      defenseTeam.balance
+    )
+    *0.008;
+
+  /*
+    أفضلية بسيطة جدًا
+    لصاحب الأرض
+  */
+
+  if(isHome){
+    xg+=0.08;
+  }
+
+  /*
+    اختلاف طبيعي صغير
+    لا يحدد النتيجة
+  */
+
+  xg+=
+    normalRandom()*0.16;
+
+  /*
+    منع الأرقام المجنونة
+  */
+
+  xg=
+    Math.max(
+      0.15,
+      Math.min(
+        4.20,
+        xg
+      )
+    );
+
+  return xg;
+}
+
+/* =========================================
+   تحويل xG إلى أهداف
+
+   توزيع Poisson
+   ========================================= */
+
+function poisson(lambda){
+
+  const L=
+    Math.exp(-lambda);
+
+  let k=0;
+  let p=1;
+
+  do{
+
+    k++;
+
+    p*=
+      Math.random();
+
+  }while(p>L);
+
+  return k-1;
+}
+
+/* =========================================
+   منع النتائج غير المنطقية
+   ========================================= */
+
+function realisticGoals(
+  goals,
+  xg,
+  strengthDifference
+){
+
+  /*
+    في المباريات الطبيعية
+    النتيجة لا يجب أن تكون
+    8-0 كثيرًا
+  */
+
+  let maxGoals=6;
+
+  if(xg<0.60){
+    maxGoals=3;
+  }
+
+  if(xg<1.00){
+    maxGoals=4;
+  }
+
+  if(
+    strengthDifference>15
+  ){
+    maxGoals=7;
+  }
+
+  return Math.max(
+    0,
+    Math.min(
+      maxGoals,
+      goals
+    )
+  );
+}
+
+/* =========================================
+   اختيار هدافي المباراة
+   ========================================= */
+
+function chooseScorer(
+  team,
+  minute
+){
+
+  const attacking=
+    team.filter(
+      p=>
+        ["ST","LW","RW","AM","CM"]
+          .includes(
+            p.position
+          )
+    );
+
+  if(!attacking.length){
+    return null;
+  }
+
+  /*
+    وزن اللاعب حسب
+    التسديد + التقييم
+  */
+
+  const weights=
+    attacking.map(
+      p=>
+        p.shooting*0.70+
+        p.overall*0.30
+    );
+
+  const total=
+    weights.reduce(
+      (a,b)=>a+b,
+      0
+    );
+
+  let random=
+    Math.random()*total;
+
+  for(
+    let i=0;
+    i<attacking.length;
+    i++
+  ){
+
+    random-=weights[i];
+
+    if(random<=0){
+
+      return{
+        player:attacking[i],
+        minute
+      };
+    }
+  }
+
+  return{
+    player:attacking[0],
+    minute
+  };
+}
+
+/* =========================================
+   توزيع دقائق الأهداف
+   ========================================= */
+
+function generateGoalMinutes(
+  goals,
+  team
+){
+
+  const result=[];
+
+  const minutes=[];
+
+  for(
+    let minute=3;
+    minute<=90;
+    minute++
+  ){
+
+    minutes.push(
+      minute
+    );
+  }
+
+  for(
+    let i=0;
+    i<goals;
+    i++
+  ){
+
+    const index=
+      Math.floor(
+        Math.random()*
+        minutes.length
+      );
+
+    const minute=
+      minutes.splice(
+        index,
+        1
+      )[0];
+
+    result.push(
+      chooseScorer(
+        team,
+        minute
+      )
+    );
+  }
+
+  return result
+    .filter(Boolean)
+    .sort(
+      (a,b)=>
+        a.minute-b.minute
+    );
+}
+
+/* =========================================
+   إنشاء ملخص أحداث المباراة
+   ========================================= */
+
+function createMatchEvents(
+  homeGoals,
+  awayGoals,
+  homeTeam,
+  awayTeam
+){
+
+  const homeEvents=
+    generateGoalMinutes(
+      homeGoals,
+      homeTeam
+    ).map(e=>({
+
+      type:"goal",
+
+      team:"home",
+
+      minute:e.minute,
+
+      player:e.player.name
+
+    }));
+
+  const awayEvents=
+    generateGoalMinutes(
+      awayGoals,
+      awayTeam
+    ).map(e=>({
+
+      type:"goal",
+
+      team:"away",
+
+      minute:e.minute,
+
+      player:e.player.name
+
+    }));
+
+  return[
+    ...homeEvents,
+    ...awayEvents
+  ]
+  .sort(
+    (a,b)=>
+      a.minute-b.minute
+  );
+}
+
+/* =========================================
+   المحاكاة الرئيسية للمباراة
+
+   هذه الدالة هي الحكم النهائي
+   ========================================= */
+
+function simulateMatch(
+  homeTeamIds,
+  awayTeamIds
+){
+
+  const home=
+    analyzeTeam(
+      homeTeamIds
+    );
+
+  const away=
+    analyzeTeam(
+      awayTeamIds
+    );
+
+  const advantage=
+    calculateMatchAdvantage(
+      home,
+      away
+    );
+
+  /*
+    حساب الفرص المتوقعة
+  */
+
+  let homeXG=
+    calculateXG(
+      home,
+      away,
+      true
+    );
+
+  let awayXG=
+    calculateXG(
+      away,
+      home,
+      false
+    );
+
+  /*
+    تعديل إضافي
+    من قوة الهجوم
+    ضد دفاع الخصم
+  */
+
+  homeXG+=
+    advantage.homeAdvantage;
+
+  awayXG+=
+    advantage.awayAdvantage;
+
+  homeXG=
+    Math.max(
+      0.10,
+      Math.min(
+        4.50,
+        homeXG
+      )
+    );
+
+  awayXG=
+    Math.max(
+      0.10,
+      Math.min(
+        4.50,
+        awayXG
+      )
+    );
+
+  /*
+    تحويل xG إلى أهداف
+  */
+
+  let homeGoals=
+    poisson(homeXG);
+
+  let awayGoals=
+    poisson(awayXG);
+
+  /*
+    فرق القوة
+  */
+
+  const strengthDifference=
+    Math.abs(
+      home.power-
+      away.power
+    );
+
+  homeGoals=
+    realisticGoals(
+      homeGoals,
+      homeXG,
+      strengthDifference
+    );
+
+  awayGoals=
+    realisticGoals(
+      awayGoals,
+      awayXG,
+      strengthDifference
+    );
+
+  /*
+    حماية إضافية:
+
+    إذا كان الفرق كبيرًا جدًا
+    لا نجعل الفريق الأضعف
+    يفوز كثيرًا بشكل غير منطقي.
+
+    المفاجأة ممكنة،
+    لكنها نادرة.
+  */
+
+  const strongerHome=
+    home.power>
+    away.power;
+
+  const stronger=
+    strongerHome
+      ?home
+      :away;
+
+  const weaker=
+    strongerHome
+      ?away
+      :home;
+
+  const strongerGoals=
+    strongerHome
+      ?homeGoals
+      :awayGoals;
+
+  const weakerGoals=
+    strongerHome
+      ?awayGoals
+      :homeGoals;
+
+  if(
+    strengthDifference>=18&&
+    weakerGoals>
+    strongerGoals
+  ){
+
+    /*
+      85% من الوقت
+      يتم تصحيح الفوز
+      غير المنطقي للفريق الأضعف
+    */
+
+    if(Math.random()<0.85){
+
+      if(strongerHome){
+
+        homeGoals=
+          Math.max(
+            homeGoals,
+            awayGoals
+          );
+
+      }else{
+
+        awayGoals=
+          Math.max(
+            awayGoals,
+            homeGoals
+          );
+      }
+    }
+  }
+
+  /*
+    إذا كان الفريقان متقاربين
+    فالنتيجة تظل مفتوحة
+    ولا يوجد تصحيح.
+  */
+
+  const events=
+    createMatchEvents(
+      homeGoals,
+      awayGoals,
+      home.team,
+      away.team
+    );
+
+  /*
+    استحواذ تقريبي
+    مبني على الوسط
+  */
+
+  const midfieldTotal=
+    home.midfield+
+    away.midfield;
+
+  let homePossession=
+    midfieldTotal>0
+      ?(
+        home.midfield/
+        midfieldTotal
+      )*100
+      :50;
+
+  homePossession+=
+    normalRandom()*2;
+
+  homePossession=
+    Math.max(
+      35,
+      Math.min(
+        65,
+        homePossession
+      )
+    );
+
+  const awayPossession=
+    100-homePossession;
+
+  /*
+    عدد التسديدات
+    مرتبط بـ xG والهجوم
+  */
+
+  const homeShots=
+    Math.max(
+      homeGoals,
+      Math.round(
+        homeXG*5+
+        Math.random()*4
+      )
+    );
+
+  const awayShots=
+    Math.max(
+      awayGoals,
+      Math.round(
+        awayXG*5+
+        Math.random()*4
+      )
+    );
+
+  return{
+
+    score:{
+      home:homeGoals,
+      away:awayGoals
+    },
+
+    xg:{
+      home:
+        Number(
+          homeXG.toFixed(2)
+        ),
+
+      away:
+        Number(
+          awayXG.toFixed(2)
+        )
+    },
+
+    possession:{
+      home:
+        Number(
+          homePossession.toFixed(1)
+        ),
+
+      away:
+        Number(
+          awayPossession.toFixed(1)
+        )
+    },
+
+    shots:{
+      home:homeShots,
+      away:awayShots
+    },
+
+    events,
+
+    analysis:{
+
+      home:{
+        attack:
+          Number(
+            home.attack.toFixed(1)
+          ),
+
+        midfield:
+          Number(
+            home.midfield.toFixed(1)
+          ),
+
+        defense:
+          Number(
+            home.defense.toFixed(1)
+          ),
+
+        goalkeeper:
+          Number(
+            home.goalkeeper.toFixed(1)
+          ),
+
+        balance:
+          Number(
+            home.balance.toFixed(1)
+          ),
+
+        power:
+          Number(
+            home.power.toFixed(1)
+          )
+      },
+
+      away:{
+        attack:
+          Number(
+            away.attack.toFixed(1)
+          ),
+
+        midfield:
+          Number(
+            away.midfield.toFixed(1)
+          ),
+
+        defense:
+          Number(
+            away.defense.toFixed(1)
+          ),
+
+        goalkeeper:
+          Number(
+            away.goalkeeper.toFixed(1)
+          ),
+
+        balance:
+          Number(
+            away.balance.toFixed(1)
+          ),
+
+        power:
+          Number(
+            away.power.toFixed(1)
+          )
+      }
+    }
+  };
+}
+
+/* =========================================
+   إنهاء اللعبة وتحديد النتيجة
+   ========================================= */
+
 function finishGame(r){
-  r.phase="done"; clearTimeout(r.timer);
-  const ps=[...r.players.values()]; if(ps.length!==2)return;
-  const A=teamRatings(ps[0]), B=teamRatings(ps[1]);
-  const arrA=ps[0].team.map(id=>players.find(x=>x.id===id)).filter(Boolean);
-  const arrB=ps[1].team.map(id=>players.find(x=>x.id===id)).filter(Boolean);
-  const balanceA=teamBalance(arrA), balanceB=teamBalance(arrB);
-  const strengthA=.27*A.att+.22*A.mid+.16*A.shooting+.12*A.passing+.11*A.overall+.07*A.gk+.05*A.def;
-  const strengthB=.27*B.att+.22*B.mid+.16*B.shooting+.12*B.passing+.11*B.overall+.07*B.gk+.05*B.def;
-  const pressureA=(A.att*.36+A.mid*.26+A.shooting*.20+A.passing*.18)-(B.def*.50+B.gk*.50);
-  const pressureB=(B.att*.36+B.mid*.26+B.shooting*.20+B.passing*.18)-(A.def*.50+A.gk*.50);
-  // محرك AI حتمي: نفس التشكيلتين تعطيان نفس النتيجة، لكن النتيجة تتأثر بالتوازن والتكتيك والجودة.
-  const seed=squadFingerprint(ps[0].team)+"|"+squadFingerprint(ps[1].team);
-  const nA=deterministicNoise(seed+"A")-.5, nB=deterministicNoise(seed+"B")-.5;
-  const xgA=clamp(.45+pressureA*.035+(strengthA-strengthB)*.018+balanceA*.28-balanceB*.10+nA*.28,.12,4.25);
-  const xgB=clamp(.45+pressureB*.035+(strengthB-strengthA)*.018+balanceB*.28-balanceA*.10+nB*.28,.12,4.25);
-  const finishingA=clamp(A.shooting*.58+A.att*.27+A.mid*.15,45,99);
-  const finishingB=clamp(B.shooting*.58+B.att*.27+B.mid*.15,45,99);
-  const defensiveA=clamp(A.defending*.58+A.def*.18+A.gk*.24,45,99);
-  const defensiveB=clamp(B.defending*.58+B.def*.18+B.gk*.24,45,99);
-  function goalsFromXg(xg,finishing,oppDef,noise){
-    const quality=(finishing-70)*.016-(oppDef-70)*.012+noise*.18;
-    const raw=xg+quality;
-    // توزيع أهداف قريب من الواقع مع سقف يمنع النتائج المبالغ فيها.
-    if(raw<.48)return 0;
-    if(raw<1.28)return 1;
-    if(raw<2.18)return 2;
-    if(raw<3.12)return 3;
-    if(raw<4.05)return 4;
-    return 5;
+
+  if(
+    r.phase==="finished"
+  ){
+    return;
   }
-  const ga=goalsFromXg(xgA,finishingA,defensiveB,nA);
-  const gb=goalsFromXg(xgB,finishingB,defensiveA,nB);
-  const events=[];
-  function goal(teamIndex,goalIndex){
-    const minute=teamIndex===0
-      ? clamp(9+goalIndex*19+Math.round((100-A.mid)/12),2,89)
-      : clamp(16+goalIndex*21+Math.round((100-B.mid)/12),3,90);
-    const arr=teamIndex===0?arrA:arrB,scorer=chooseScorer(arr,goalIndex);
-    if(!scorer)return;
-    const assistPool=arr.filter(x=>x.id!==scorer.id&&["CM","CDM","AM","LW","RW","ST"].includes(x.position));
-    const assist=assistPool.length?chooseScorer(assistPool,goalIndex+1):null;
-    events.push({minute,team:teamIndex,scorer:scorer.name,assist:assist?.name||null});
+
+  clearTimeout(
+    r.timer
+  );
+
+  r.phase=
+    "result";
+
+  const ids=
+    [...r.players.keys()];
+
+  if(ids.length<2){
+    return;
   }
-  for(let i=0;i<ga;i++)goal(0,i); for(let i=0;i<gb;i++)goal(1,i);
-  events.sort((a,b)=>a.minute-b.minute);
 
-  const possessionA=Math.round(Math.max(38,Math.min(62,50+(A.mid-B.mid)*.55+(A.passing-B.passing)*.12)));
-  const possessionB=100-possessionA;
-  const log=[
-    `1' — 🏟️ انطلاق المباراة`,
-    `12' — 🧠 استحواذ ${ps[0].name}: ${possessionA}% مقابل ${possessionB}%`,
-    `24' — ⚡ هجمة خطيرة وتدخل دفاعي في الوقت المناسب`,
-    `38' — 🧤 تصدٍ مهم من حارس المرمى`,
-    `45+1' — ⏱️ نهاية الشوط الأول`,
-    `57' — 🔥 ضغط متواصل ومحاولة مرتدة`,
-    `68' — 🧠 قراءة تكتيكية وتغييرات في طريقة اللعب`,
-    `79' — 🎯 فرصة محققة تضيع`,
-    `90+3' — 🏁 صافرة النهاية`
-  ];
-  const goalLines=events.map(e=>`${e.minute}' — ⚽ ${e.scorer} (${e.team===0?ps[0].name:ps[1].name})${e.assist?` — صناعة ${e.assist}`:""}`);
-  const fullLog=[...log.slice(0,4),...goalLines,...log.slice(4)];
-  fullLog.push(`🤖 بوت الذكاء الاصطناعي حلّل التشكيلتين: قوة ${ps[0].name} ${strengthA.toFixed(1)} مقابل ${strengthB.toFixed(1)}`);
-  fullLog.push(`🧠 القرار مبني على الهجوم والوسط والدفاع والحراسة والتمرير والتسديد، وليس على نتيجة عشوائية.`);
-  fullLog.push(`🎯 xG: ${xgA.toFixed(2)} مقابل ${xgB.toFixed(2)}`);
-  fullLog.push(`📊 الاستحواذ المتوقع: ${possessionA}% مقابل ${possessionB}%`);
+  const homeId=
+    ids[0];
 
-  // Save persistent match records and points.
-  if(ps.length===2){const [a,b]=ps;const pa=touchProfile(a),pb=touchProfile(b);pa.matches++;pb.matches++;if(ga>gb){pa.wins++;pb.losses++;pa.points+=3}else if(gb>ga){pb.wins++;pa.losses++;pb.points+=3}else{pa.draws++;pb.draws++;pa.points++;pb.points++}saveProfiles()}
-  broadcast(r,{type:"leaderboard",players:leaderboard()});
-  broadcast(r,{type:"result",result:{
-    score:`${ps[0].name} ${ga} — ${gb} ${ps[1].name}`,
-    log:fullLog,goals:events,teams:{a:ps[0],b:ps[1]},
-    ai:{strengthA,strengthB,xgA,xgB,possessionA,possessionB}
-  }});
-}
-function photoFor(id){const p=players.find(x=>x.id===Number(id));if(!p)return null;const name=aliases[p.name]||p.name;return `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name.replaceAll(" ","_"))}`}
-function sendPhoto(res,id){const p=players.find(x=>x.id===Number(id));if(!p){res.writeHead(404);return res.end()}if(photoCache.has(p.id)){res.writeHead(302,{Location:photoCache.get(p.id)});return res.end()}https.get(photoFor(p.id),{headers:{"User-Agent":"YousefGames/1.0"}},r=>{let data="";r.on("data",c=>data+=c);r.on("end",()=>{try{const j=JSON.parse(data),src=j?.thumbnail?.source||j?.originalimage?.source;if(src){photoCache.set(p.id,src);res.writeHead(302,{Location:src,"Cache-Control":"public,max-age=86400"});return res.end()}}catch(e){}res.writeHead(404);res.end()})}).on("error",()=>{res.writeHead(404);res.end()})}
-const server=http.createServer((req,res)=>{let u=req.url.split("?")[0];if(u.startsWith("/player-photo/"))return sendPhoto(res,u.split("/").pop());if(u==="/")u="/index.html";const f=path.join(__dirname,u);if(!f.startsWith(__dirname)||!fs.existsSync(f)){res.writeHead(404);return res.end("Not found")}const ext=path.extname(f);res.writeHead(200,{"Content-Type":mime[ext]||"application/octet-stream"});fs.createReadStream(f).pipe(res)});
-const wss=new WebSocket.Server({server});
-wss.on("connection",ws=>{
-  let room=null,id=Math.random().toString(36).slice(2,10);
-  ws.send(JSON.stringify({type:"publicRooms",rooms:publicRooms()}));
-  ws.on("message",raw=>{
-    let m;try{m=JSON.parse(raw)}catch{return}
-    if(m.type==="browse"){
-      ws.send(JSON.stringify({type:"publicRooms",rooms:publicRooms()}));
-    }else if(m.type==="create"){
-      room=roomCode();
-      const teamSize=Number(m.teamSize)===5?5:11;
-      const budget=teamSize===5?100:200;
-      const positions=teamSize===5?["GK","CB","CM","RW","ST"]:roundPositions;
-      const r={phase:"lobby",round:0,players:new Map(),clients:new Set(),used:new Set(),current:null,bid:0,highest:null,bids:[],endsAt:0,timer:null,skipUsed:new Set(),turn:null,replayRequester:null,teamSize,startBudget:budget,totalRounds:teamSize,roundPositions:positions,mode:teamSize===5?"خماسية":"11 لاعب"};
-      rooms.set(room,r);
-      const p={name:String(m.name||"لاعب").slice(0,30),photo:String(m.photo||""),profileId:String(m.profileId||m.name||"لاعب"),budget,team:[]};
-      r.players.set(id,p);touchProfile(p);saveProfiles();r.clients.add(ws);
-      ws.send(JSON.stringify({type:"connected",me:id,room,host:true}));broadcast(r,{type:"state",state:publicState(r)});broadcastRooms();
-    }else if(m.type==="join"){
-      room=String(m.room||"").toUpperCase();const r=rooms.get(room);
-      if(!r||r.phase!=="lobby")return ws.send(JSON.stringify({type:"error",message:"الغرفة غير موجودة أو بدأت بالفعل"}));
-      if(r.players.size>=2)return ws.send(JSON.stringify({type:"error",message:"الغرفة ممتلئة — لاعبان فقط"}));
-      const p={name:String(m.name||"لاعب").slice(0,30),photo:String(m.photo||""),profileId:String(m.profileId||m.name||"لاعب"),budget:r.startBudget,team:[]};
-      r.players.set(id,p);touchProfile(p);saveProfiles();r.clients.add(ws);ws.send(JSON.stringify({type:"connected",me:id,room,host:false}));broadcast(r,{type:"state",state:publicState(r)});broadcastRooms();
-    }else if(m.type==="getLeaderboard"){ws.send(JSON.stringify({type:"leaderboard",players:leaderboard()}));
-    }else if(m.type==="getProfile"){const k=String(m.profileId||m.name||"لاعب");const p=profiles[k]||{name:String(m.name||"لاعب"),matches:0,wins:0,losses:0,draws:0,points:0};const rank=Math.max(1,leaderboard().findIndex(x=>x.id===k)+1);ws.send(JSON.stringify({type:"profile",profile:{...p,rank}}));
-    }else if(room){
-      const r=rooms.get(room);if(!r)return;
+  const awayId=
+    ids[1];
 
-      if(m.type==="start"&&[...r.players.keys()][0]===id&&r.players.size===2&&r.phase==="lobby"){
-        r.phase="auction";r.round=1;broadcastRooms();startRound(r);
-      }
+  const home=
+    r.players.get(
+      homeId
+    );
 
-      if(m.type==="bid"&&r.phase==="auction"){
-        const p=r.players.get(id),amount=Math.max(1,Math.floor(Number(m.amount)||1));
-        if(id!==r.turn)return ws.send(JSON.stringify({type:"error",message:"مش دورك في المزايدة الآن"}));
-        const amt=amount;
-        if(p&&p.budget>=amt&&amt>r.bid){
-          r.bid=amt;r.highest=id;r.bids.push({name:p.name,amount:amt});
-          const ids=[...r.players.keys()].filter(x=>x!==id&&(r.players.get(x)?.budget||0)>=1);r.turn=ids[0]||id;
-          r.endsAt=Date.now()+20000;clearTimeout(r.timer);r.timer=setTimeout(()=>finishRound(r),20100);
-          broadcast(r,{type:"state",state:publicState(r)});
-        }
-      }
+  const away=
+    r.players.get(
+      awayId
+    );
 
-      if(m.type==="skip"&&r.phase==="auction"){
-        if(id!==r.turn)return ws.send(JSON.stringify({type:"error",message:"مش دورك في المزايدة الآن"}));
-        if(!r.highest||r.highest===id)return ws.send(JSON.stringify({type:"error",message:"لا يمكن التخطي قبل وجود مزايد آخر"}));
-        r.skipUsed.add(id);finishRound(r);
-      }
+  /*
+    محاكاة المباراة
+    من قوة الفريقين
+  */
 
-      if(m.type==="replayRequest"&&r.phase==="done"&&r.players.size===2){
-        const first=[...r.players.keys()][0],other=[...r.players.keys()].find(x=>x!==first);
-        if(id!==first)return ws.send(JSON.stringify({type:"error",message:"طلب مباراة أخرى متاح للاعب الأول فقط"}));
-        if(r.replayRequester)return ws.send(JSON.stringify({type:"error",message:"تم إرسال طلب بالفعل، في انتظار موافقة اللاعب الآخر"}));
-        r.replayRequester=id;
-        broadcast(r,{type:"replayRequest",requesterId:id,requesterName:r.players.get(id)?.name||"اللاعب الأول",targetId:other,targetName:r.players.get(other)?.name||"اللاعب الآخر"});
-      }
+  const match=
+    simulateMatch(
+      home.team,
+      away.team
+    );
 
-      if(m.type==="replayResponse"&&r.phase==="done"&&r.players.size===2){
-        if(!r.replayRequester)return ws.send(JSON.stringify({type:"error",message:"لا يوجد طلب مباراة أخرى"}));
-        const first=[...r.players.keys()][0],other=[...r.players.keys()].find(x=>x!==first);
-        if(id!==other)return ws.send(JSON.stringify({type:"error",message:"الموافقة أو الرفض من اللاعب الآخر فقط"}));
-        if(m.accept){
-          clearTimeout(r.timer);
-          r.replayRequester=null;
-          r.phase="auction";r.round=1;r.used=new Set();r.current=null;r.bid=0;r.highest=null;r.bids=[];r.endsAt=0;r.skipUsed=new Set();r.turn=null;
-          for(const p of r.players.values()){p.budget=r.startBudget;p.team=[]}
-          startRound(r);
-        }else{
-          broadcast(r,{type:"returnHome",message:"تم رفض طلب المباراة الأخرى. تم إنهاء الغرفة."});
-          clearTimeout(r.timer);
-          rooms.delete(room);
-          for(const c of r.clients){try{c.close()}catch(e){}}
-        }
-      }
+  const homeScore=
+    match.score.home;
+
+  const awayScore=
+    match.score.away;
+
+  let winnerId=null;
+
+  if(
+    homeScore>
+    awayScore
+  ){
+
+    winnerId=
+      homeId;
+
+  }else if(
+    awayScore>
+    homeScore
+  ){
+
+    winnerId=
+      awayId;
+  }
+
+  /*
+    تحديث البروفايلات
+  */
+
+  const homeProfile=
+    touchProfile(home);
+
+  const awayProfile=
+    touchProfile(away);
+
+  homeProfile.matches++;
+  awayProfile.matches++;
+
+  if(
+    winnerId===homeId
+  ){
+
+    homeProfile.wins++;
+    homeProfile.points+=3;
+
+    awayProfile.losses++;
+
+  }else if(
+    winnerId===awayId
+  ){
+
+    awayProfile.wins++;
+    awayProfile.points+=3;
+
+    homeProfile.losses++;
+
+  }else{
+
+    homeProfile.draws++;
+    awayProfile.draws++;
+
+    homeProfile.points++;
+    awayProfile.points++;
+  }
+
+  saveProfiles();
+
+  /*
+    ترتيب اللاعبين
+  */
+
+  const ranking=
+    leaderboard();
+
+  /*
+    إرسال النتيجة
+  */
+
+  broadcast(r,{
+
+    type:"matchResult",
+
+    result:{
+
+      home:{
+        id:homeId,
+        name:home.name,
+        photo:home.photo||"",
+        team:
+          getTeamPlayers(
+            home.team
+          )
+      },
+
+      away:{
+        id:awayId,
+        name:away.name,
+        photo:away.photo||"",
+        team:
+          getTeamPlayers(
+            away.team
+          )
+      },
+
+      score:{
+        home:homeScore,
+        away:awayScore
+      },
+
+      winnerId,
+
+      xg:match.xg,
+
+      possession:
+        match.possession,
+
+      shots:
+        match.shots,
+
+      events:
+        match.events,
+
+      analysis:
+        match.analysis,
+
+      ranking
     }
   });
 
-  ws.on("close",()=>{
-    if(!room||!rooms.has(room)) return;
-    const r=rooms.get(room);
-    const leaving=r.players.get(id);
-    r.clients.delete(ws);
-    r.players.delete(id);
+  /*
+    الحالة النهائية
+    تظل موجودة حتى لو
+    أحد اللاعبين خرج
+  */
 
-    clearTimeout(r.timer);
-    // بعد ظهور النتيجة، خروج أحد اللاعبين لا يؤثر على شاشة النتيجة عند الآخر.
-    // لا نرسل رسالة مغادرة ولا نغلق غرفة اللاعب الباقي.
-    if(r.phase==="done"){
-      if(r.players.size===0){rooms.delete(room);broadcastRooms();}
+  r.phase=
+    "finished";
+
+  r.finishedAt=
+    Date.now();
+
+  /*
+    نحتفظ بالغرفة فترة
+    حتى يظل اللاعب الآخر
+    يشاهد النتيجة
+  */
+
+  setTimeout(()=>{
+
+    if(
+      r.phase==="finished"
+    ){
+
+      rooms.delete(
+        r.code
+      );
+
+      broadcastRooms();
+    }
+
+  },10*60*1000);
+}
+/* =========================================
+   WebSocket - إدارة الاتصال واللاعبين
+   ========================================= */
+
+wss.on("connection",(ws)=>{
+
+  ws.playerId=null;
+  ws.roomCode=null;
+  ws.playerName="لاعب";
+  ws.playerPhoto="";
+
+  /*
+    إرسال قائمة الغرف فور الاتصال
+  */
+
+  send(ws,{
+    type:"roomsList",
+    rooms:getPublicRooms()
+  });
+
+
+  /* =========================================
+     استقبال الرسائل
+     ========================================= */
+
+  ws.on("message",(message)=>{
+
+    let data;
+
+    try{
+
+      data=
+        JSON.parse(
+          message.toString()
+        );
+
+    }catch(error){
+
+      send(ws,{
+        type:"error",
+        message:"البيانات غير صحيحة"
+      });
+
       return;
     }
-    // أثناء اللوبي أو المزاد فقط: خروج الخصم ينهي المباراة ويبلغ اللاعب الباقي.
-    if(r.players.size>0){
-      const message=`${leaving?.name||"خصمك"} غادر الغرفة. تم إنهاء المباراة.`;
-      broadcast(r,{type:"opponentLeft",message});
-      setTimeout(()=>{ if(rooms.get(room)===r) rooms.delete(room); broadcastRooms(); },500);
-    }else{
-      rooms.delete(room);broadcastRooms();
+
+
+    /* =========================================
+       تسجيل اللاعب
+       ========================================= */
+
+    if(
+      data.type==="login"
+    ){
+
+      ws.playerId=
+        data.playerId||
+        randomId();
+
+      ws.playerName=
+        data.name||
+        "لاعب";
+
+      ws.playerPhoto=
+        data.photo||
+        "";
+
+      const profile=
+        getProfile(
+          ws.playerId
+        );
+
+      if(data.name){
+
+        profile.name=
+          data.name;
+      }
+
+      if(data.photo){
+
+        profile.photo=
+          data.photo;
+      }
+
+      saveProfiles();
+
+      send(ws,{
+        type:"loginSuccess",
+
+        playerId:
+          ws.playerId,
+
+        profile:
+          touchProfile({
+            id:ws.playerId,
+            name:ws.playerName,
+            photo:ws.playerPhoto
+          }),
+
+        ranking:
+          leaderboard()
+      });
+
+      return;
     }
+
+
+    /* =========================================
+       طلب الملف الشخصي
+       ========================================= */
+
+    if(
+      data.type==="getProfile"
+    ){
+
+      const profile=
+        touchProfile({
+          id:ws.playerId,
+          name:ws.playerName,
+          photo:ws.playerPhoto
+        });
+
+      send(ws,{
+        type:"profile",
+        profile
+      });
+
+      return;
+    }
+
+
+    /* =========================================
+       طلب ترتيب اللاعبين
+       ========================================= */
+
+    if(
+      data.type==="getLeaderboard"
+    ){
+
+      send(ws,{
+        type:"leaderboard",
+        ranking:
+          leaderboard()
+      });
+
+      return;
+    }
+
+
+    /* =========================================
+       إنشاء غرفة
+       ========================================= */
+
+    if(
+      data.type==="createRoom"
+    ){
+
+      if(!ws.playerId){
+
+        send(ws,{
+          type:"error",
+          message:"يجب تسجيل الدخول أولاً"
+        });
+
+        return;
+      }
+
+
+      /*
+        نوع الغرفة
+
+        eleven = 11 لاعب
+        five = 5 لاعبين
+      */
+
+      const roomType=
+        data.roomType==="five"
+          ?"five"
+          :"eleven";
+
+
+      /*
+        11 لاعب = 200 مليون
+
+        خماسي = 100 مليون
+      */
+
+      const budget=
+        roomType==="five"
+          ?100
+          :200;
+
+
+      /*
+        عدد الجولات
+
+        خماسي = 5 جولات
+
+        11 لاعب = 11 جولة
+      */
+
+      const totalRounds=
+        roomType==="five"
+          ?5
+          :11;
+
+
+      const code=
+        generateRoomCode();
+
+
+      const room={
+
+        code,
+
+        ownerId:
+          ws.playerId,
+
+        roomType,
+
+        budget,
+
+        totalRounds,
+
+        round:0,
+
+        phase:"waiting",
+
+        currentPlayer:null,
+
+        currentPrice:0,
+
+        currentBidder:null,
+
+        bidHistory:[],
+
+        players:
+          new Map(),
+
+        timer:null,
+
+        turnStartedAt:null,
+
+        result:null,
+
+        createdAt:
+          Date.now()
+      };
+
+
+      room.players.set(
+        ws.playerId,
+        {
+
+          id:
+            ws.playerId,
+
+          name:
+            ws.playerName,
+
+          photo:
+            ws.playerPhoto,
+
+          ws,
+
+          money:
+            budget,
+
+          team:[],
+
+          ready:false
+        }
+      );
+
+
+      rooms.set(
+        code,
+        room
+      );
+
+
+      ws.roomCode=
+        code;
+
+
+      send(ws,{
+        type:"roomCreated",
+
+        room:
+          getRoomData(
+            room,
+            ws.playerId
+          )
+      });
+
+
+      /*
+        تحديث الغرف
+        حتى تظهر للجميع
+      */
+
+      broadcastRooms();
+
+      return;
+    }
+
+
+    /* =========================================
+       دخول الغرفة مباشرة من قائمة الغرف
+       ========================================= */
+
+    if(
+      data.type==="joinRoom"
+    ){
+
+      const code=
+        data.code;
+
+      const room=
+        rooms.get(
+          code
+        );
+
+
+      if(!room){
+
+        send(ws,{
+          type:"error",
+          message:"الغرفة لم تعد متاحة"
+        });
+
+        return;
+      }
+
+
+      /*
+        لا دخول أثناء المباراة
+      */
+
+      if(
+        room.phase!=="waiting"
+      ){
+
+        send(ws,{
+          type:"error",
+          message:"المباراة بدأت بالفعل"
+        });
+
+        return;
+      }
+
+
+      /*
+        الغرفة ممتلئة
+      */
+
+      if(
+        room.players.size>=2
+      ){
+
+        send(ws,{
+          type:"error",
+          message:"الغرفة ممتلئة"
+        });
+
+        return;
+      }
+
+
+      /*
+        منع دخول نفس اللاعب مرتين
+      */
+
+      if(
+        room.players.has(
+          ws.playerId
+        )
+      ){
+
+        send(ws,{
+          type:"roomJoined",
+
+          room:
+            getRoomData(
+              room,
+              ws.playerId
+            )
+        });
+
+        return;
+      }
+
+
+      room.players.set(
+        ws.playerId,
+        {
+
+          id:
+            ws.playerId,
+
+          name:
+            ws.playerName,
+
+          photo:
+            ws.playerPhoto,
+
+          ws,
+
+          money:
+            room.budget,
+
+          team:[],
+
+          ready:false
+        }
+      );
+
+
+      ws.roomCode=
+        room.code;
+
+
+      /*
+        دخول مباشر بدون كتابة كود
+      */
+
+      broadcast(room,{
+
+        type:"roomUpdate",
+
+        room:
+          getRoomData(
+            room
+          )
+      });
+
+
+      broadcastRooms();
+
+      return;
+    }
+
+
+    /* =========================================
+       اللاعب جاهز
+       ========================================= */
+
+    if(
+      data.type==="ready"
+    ){
+
+      const room=
+        rooms.get(
+          ws.roomCode
+        );
+
+      if(!room){
+        return;
+      }
+
+
+      const player=
+        room.players.get(
+          ws.playerId
+        );
+
+      if(!player){
+        return;
+      }
+
+
+      player.ready=true;
+
+
+      broadcast(room,{
+
+        type:"roomUpdate",
+
+        room:
+          getRoomData(
+            room
+          )
+      });
+
+
+      /*
+        بدء اللعبة
+        عندما يكون لاعبان جاهزين
+      */
+
+      if(
+        room.players.size===2&&
+        [...room.players.values()]
+          .every(
+            p=>p.ready
+          )
+      ){
+
+        startGame(
+          room
+        );
+      }
+
+      return;
+    }
+
+
+    /* =========================================
+       المزايدة
+       
+       مهم جداً:
+       
+       الرقم المدخل هو السعر النهائي.
+       
+       لا يتم جمعه على المزايدة السابقة.
+       
+       مثال:
+       السعر الحالي = 14
+       اللاعب الآخر يجب أن يضع 15 أو أكثر.
+       
+       15 يصبح السعر النهائي.
+       
+       وليس 14 + 15 = 29.
+       ========================================= */
+
+    if(
+      data.type==="bid"
+    ){
+
+      const room=
+        rooms.get(
+          ws.roomCode
+        );
+
+      if(!room){
+        return;
+      }
+
+
+      if(
+        room.phase!=="bidding"
+      ){
+
+        send(ws,{
+          type:"error",
+          message:"لا توجد مزايدة حالياً"
+        });
+
+        return;
+      }
+
+
+      const player=
+        room.players.get(
+          ws.playerId
+        );
+
+      if(!player){
+        return;
+      }
+
+
+      /*
+        اللاعب بدون فلوس
+        لا يحق له المزايدة
+      */
+
+      if(
+        player.money<=0
+      ){
+
+        send(ws,{
+          type:"error",
+          message:"لا تملك أموالاً للمزايدة"
+        });
+
+        return;
+      }
+
+
+      const amount=
+        Number(
+          data.amount
+        );
+
+
+      if(
+        !Number.isFinite(
+          amount
+        )
+      ){
+
+        send(ws,{
+          type:"error",
+          message:"أدخل رقماً صحيحاً"
+        });
+
+        return;
+      }
+
+
+      /*
+        السعر النهائي يجب
+        أن يكون أكبر من السعر الحالي
+      */
+
+      if(
+        amount<=
+        room.currentPrice
+      ){
+
+        send(ws,{
+          type:"error",
+
+          message:
+            `يجب أن تكون المزايدة أكبر من ${room.currentPrice}`
+        });
+
+        return;
+      }
+
+
+      /*
+        لا يستطيع دفع مبلغ
+        أكبر من أمواله
+      */
+
+      if(
+        amount>
+        player.money
+      ){
+
+        send(ws,{
+          type:"error",
+          message:"لا تملك هذا المبلغ"
+        });
+
+        return;
+      }
+
+
+      /*
+        السعر الحالي يصبح
+        المبلغ الجديد مباشرة.
+
+        لا يوجد جمع.
+      */
+
+      room.currentPrice=
+        amount;
+
+      room.currentBidder=
+        ws.playerId;
+
+
+      room.bidHistory.push({
+
+        playerId:
+          ws.playerId,
+
+        amount,
+
+        time:
+          Date.now()
+      });
+
+
+      /*
+        إرسال تحديث للجميع
+      */
+
+      broadcast(room,{
+
+        type:"bidUpdate",
+
+        room:
+          getRoomData(
+            room
+          ),
+
+        currentPrice:
+          room.currentPrice,
+
+        currentBidder:
+          room.currentBidder,
+
+        nextMinimumBid:
+          room.currentPrice+1
+      });
+
+
+      return;
+    }
+
+
+    /* =========================================
+       تمرير المزايدة
+       ========================================= */
+
+    if(
+      data.type==="passBid"
+    ){
+
+      const room=
+        rooms.get(
+          ws.roomCode
+        );
+
+      if(
+        !room||
+        room.phase!=="bidding"
+      ){
+        return;
+      }
+
+
+      /*
+        لا يمكن تمرير المزاد
+        قبل وجود مزايدة
+      */
+
+      if(
+        !room.currentBidder
+      ){
+
+        return;
+      }
+
+
+      /*
+        اللاعب الفائز
+        بالمزايدة الحالية
+      */
+
+      const winner=
+        room.players.get(
+          room.currentBidder
+        );
+
+
+      if(!winner){
+        return;
+      }
+
+
+      /*
+        اللاعب يدفع السعر النهائي فقط
+      */
+
+      winner.money-=
+        room.currentPrice;
+
+
+      /*
+        إضافة اللاعب للفريق
+      */
+
+      winner.team.push(
+        room.currentPlayer.id
+      );
+
+
+      const soldPlayer=
+        room.currentPlayer;
+
+
+      broadcast(room,{
+
+        type:"playerSold",
+
+        player:
+          soldPlayer,
+
+        winnerId:
+          winner.id,
+
+        winnerName:
+          winner.name,
+
+        finalPrice:
+          room.currentPrice
+      });
+
+
+      /*
+        الانتقال للجولة التالية
+      */
+
+      setTimeout(()=>{
+
+        nextRound(
+          room
+        );
+
+      },1500);
+
+
+      return;
+    }
+
   });
+
+
+  /* =========================================
+     خروج اللاعب من الاتصال
+     ========================================= */
+
+  ws.on("close",()=>{
+
+    const room=
+      rooms.get(
+        ws.roomCode
+      );
+
+
+    if(!room){
+      return;
+    }
+
+
+    /*
+      إذا انتهت المباراة بالفعل
+
+      خروج لاعب من شاشة النتيجة
+      لا يؤثر على اللاعب الآخر.
+    */
+
+    if(
+      room.phase==="finished"||
+      room.phase==="result"
+    ){
+
+      const player=
+        room.players.get(
+          ws.playerId
+        );
+
+      if(player){
+
+        player.ws=null;
+      }
+
+      return;
+    }
+
+
+    /*
+      أثناء الانتظار أو الجولات:
+      إبلاغ الخصم
+      أن اللاعب غادر
+    */
+
+    room.players.delete(
+      ws.playerId
+    );
+
+
+    clearTimeout(
+      room.timer
+    );
+
+
+    /*
+      إذا بقي لاعب آخر
+    */
+
+    if(
+      room.players.size>0
+    ){
+
+      broadcast(room,{
+
+        type:"opponentLeft",
+
+        message:
+          "لقد غادر خصمك الغرفة"
+      });
+
+
+      /*
+        حذف الغرفة بعد فترة قصيرة
+      */
+
+      setTimeout(()=>{
+
+        if(
+          rooms.has(
+            room.code
+          )
+        ){
+
+          rooms.delete(
+            room.code
+          );
+
+          broadcastRooms();
+        }
+
+      },30000);
+
+    }else{
+
+      /*
+        لا يوجد أي لاعب
+      */
+
+      rooms.delete(
+        room.code
+      );
+
+      broadcastRooms();
+    }
+
+
+    /*
+      إذا كان في مزايدة
+      تتوقف فوراً
+    */
+
+    room.phase=
+      "cancelled";
+
+
+    broadcastRooms();
+  });
+
 });
-server.listen(PORT,()=>console.log("Yousef Games — Football Auction running on port "+PORT));
+
+
+/* =========================================
+   بدء اللعبة
+   ========================================= */
+
+function startGame(room){
+
+  room.phase=
+    "starting";
+
+  room.round=0;
+
+
+  /*
+    توزيع اللاعبين يكون عشوائياً
+    ولا يعتمد على قوة اللاعب فقط.
+  */
+
+  room.availablePlayers=
+    shuffle(
+      [...players]
+    );
+
+
+  broadcast(room,{
+
+    type:"gameStarted",
+
+    room:
+      getRoomData(
+        room
+      )
+  });
+
+
+  setTimeout(()=>{
+
+    nextRound(
+      room
+    );
+
+  },1000);
+}
+
+
+/* =========================================
+   الجولة التالية
+   ========================================= */
+
+function nextRound(room){
+
+  /*
+    التأكد أن الغرفة ما زالت موجودة
+  */
+
+  if(
+    !rooms.has(
+      room.code
+    )
+  ){
+    return;
+  }
+
+
+  /*
+    إذا خرج لاعب
+  */
+
+  if(
+    room.players.size<2
+  ){
+    return;
+  }
+
+
+  /*
+    نهاية الجولات
+  */
+
+  if(
+    room.round>=
+    room.totalRounds
+  ){
+
+    room.phase=
+      "playing";
+
+    broadcast(room,{
+
+      type:"auctionFinished",
+
+      room:
+        getRoomData(
+          room
+        )
+    });
+
+
+    /*
+      محاكاة المباراة
+    */
+
+    setTimeout(()=>{
+
+      finishGame(
+        room
+      );
+
+    },1500);
+
+    return;
+  }
+
+
+  room.round++;
+
+
+  /*
+    اختيار لاعب عشوائي
+    من القائمة الكبيرة.
+
+    ليس شرطاً أن يكون مشهوراً
+    أو قوياً.
+  */
+
+  const currentPlayer=
+    getRandomAuctionPlayer(
+      room
+    );
+
+
+  room.currentPlayer=
+    currentPlayer;
+
+  room.currentPrice=0;
+
+  room.currentBidder=null;
+
+  room.bidHistory=[];
+
+  room.phase=
+    "bidding";
+
+
+  /*
+    حساب اللاعبين الذين
+    لديهم فلوس للمزايدة
+  */
+
+  const activePlayers=
+    [...room.players.values()]
+      .filter(
+        p=>p.money>0
+      );
+
+
+  /*
+    لو لاعب واحد فقط
+    معه فلوس، يحصل على اللاعب
+    تلقائياً بالسعر 0
+    أو السعر الابتدائي
+  */
+
+  if(
+    activePlayers.length===1
+  ){
+
+    const winner=
+      activePlayers[0];
+
+
+    winner.team.push(
+      currentPlayer.id
+    );
+
+
+    broadcast(room,{
+
+      type:"playerSold",
+
+      player:
+        currentPlayer,
+
+      winnerId:
+        winner.id,
+
+      winnerName:
+        winner.name,
+
+      finalPrice:0
+    });
+
+
+    setTimeout(()=>{
+
+      nextRound(
+        room
+      );
+
+    },1000);
+
+    return;
+  }
+
+
+  /*
+    إرسال بداية الجولة
+  */
+
+  broadcast(room,{
+
+    type:"newRound",
+
+    round:
+      room.round,
+
+    totalRounds:
+      room.totalRounds,
+
+    player:
+      currentPlayer,
+
+    room:
+      getRoomData(
+        room
+      ),
+
+    currentPrice:0,
+
+    nextMinimumBid:1
+  });
+
+
+  /*
+    مؤقت الجولة
+  */
+
+  clearTimeout(
+    room.timer
+  );
+
+
+  room.timer=
+    setTimeout(()=>{
+
+      /*
+        إذا لم يزايد أحد
+        يتم تخطي اللاعب
+      */
+
+      if(
+        !room.currentBidder
+      ){
+
+        nextRound(
+          room
+        );
+
+        return;
+      }
+
+
+      const winner=
+        room.players.get(
+          room.currentBidder
+        );
+
+
+      if(winner){
+
+        winner.money-=
+          room.currentPrice;
+
+        winner.team.push(
+          room.currentPlayer.id
+        );
+
+
+        broadcast(room,{
+
+          type:"playerSold",
+
+          player:
+            room.currentPlayer,
+
+          winnerId:
+            winner.id,
+
+          winnerName:
+            winner.name,
+
+          finalPrice:
+            room.currentPrice
+        });
+      }
+
+
+      setTimeout(()=>{
+
+        nextRound(
+          room
+        );
+
+      },1000);
+
+
+    },30000);
+}
+
+
+/* =========================================
+   اختيار لاعب للمزاد
+
+   توزيع متنوع فعلاً:
+
+   - نجوم
+   - لاعبين متوسطين
+   - لاعبين ضعاف
+   - لاعبين عاديين
+   ========================================= */
+
+function getRandomAuctionPlayer(room){
+
+  /*
+    إزالة اللاعبين الذين ظهروا
+    بالفعل في هذه الغرفة
+  */
+
+  const usedPlayers=
+    new Set();
+
+  room.players.forEach(
+    player=>{
+
+      player.team.forEach(
+        id=>usedPlayers.add(id)
+      );
+
+    }
+  );
+
+
+  let available=
+    players.filter(
+      p=>
+        !usedPlayers.has(
+          p.id
+        )
+    );
+
+
+  /*
+    في حالة نفاد القائمة
+  */
+
+  if(!available.length){
+
+    available=
+      [...players];
+  }
+
+
+  /*
+    تصنيف اللاعبين
+    حسب القوة
+  */
+
+  const weak=
+    available.filter(
+      p=>p.overall<70
+    );
+
+  const medium=
+    available.filter(
+      p=>
+        p.overall>=70&&
+        p.overall<80
+    );
+
+  const strong=
+    available.filter(
+      p=>
+        p.overall>=80&&
+        p.overall<87
+    );
+
+  const stars=
+    available.filter(
+      p=>p.overall>=87
+    );
+
+
+  /*
+    توزيع الاحتمالات:
+
+    35% ضعاف
+    35% متوسطون
+    20% أقوياء
+    10% نجوم
+
+    وبالتالي لن تكون اللعبة
+    مليئة بالنجوم فقط.
+  */
+
+  const random=
+    Math.random();
+
+
+  let pool;
+
+
+  if(
+    random<0.35&&
+    weak.length
+  ){
+
+    pool=weak;
+
+  }else if(
+    random<0.70&&
+    medium.length
+  ){
+
+    pool=medium;
+
+  }else if(
+    random<0.90&&
+    strong.length
+  ){
+
+    pool=strong;
+
+  }else if(
+    stars.length
+  ){
+
+    pool=stars;
+
+  }else{
+
+    pool=available;
+  }
+
+
+  return pool[
+    Math.floor(
+      Math.random()*
+      pool.length
+    )
+  ];
+}
+
+
+/* =========================================
+   إرجاع بيانات الغرفة
+   ========================================= */
+
+function getRoomData(
+  room,
+  viewerId=null
+){
+
+  return{
+
+    code:
+      room.code,
+
+    ownerId:
+      room.ownerId,
+
+    roomType:
+      room.roomType,
+
+    budget:
+      room.budget,
+
+    totalRounds:
+      room.totalRounds,
+
+    round:
+      room.round,
+
+    phase:
+      room.phase,
+
+    currentPlayer:
+      room.currentPlayer,
+
+    currentPrice:
+      room.currentPrice,
+
+    currentBidder:
+      room.currentBidder,
+
+    nextMinimumBid:
+      room.currentPrice+1,
+
+    players:
+      [...room.players.values()]
+        .map(p=>({
+
+          id:p.id,
+
+          name:p.name,
+
+          photo:p.photo,
+
+          money:p.money,
+
+          team:p.team,
+
+          teamPlayers:
+            getTeamPlayers(
+              p.team
+            ),
+
+          ready:p.ready,
+
+          isMe:
+            p.id===viewerId
+        }))
+  };
+}
+
+
+/* =========================================
+   الغرف المتاحة في الصفحة الرئيسية
+   ========================================= */
+
+function getPublicRooms(){
+
+  const result=[];
+
+
+  rooms.forEach(
+    room=>{
+
+      /*
+        عرض غرف الانتظار فقط
+      */
+
+      if(
+        room.phase!=="waiting"
+      ){
+        return;
+      }
+
+
+      const owner=
+        room.players.get(
+          room.ownerId
+        );
+
+
+      result.push({
+
+        code:
+          room.code,
+
+        ownerName:
+          owner
+            ?owner.name
+            :"لاعب",
+
+        ownerPhoto:
+          owner
+            ?owner.photo
+            :"",
+
+        roomType:
+          room.roomType,
+
+        budget:
+          room.budget,
+
+        totalRounds:
+          room.totalRounds,
+
+        playersCount:
+          room.players.size,
+
+        maxPlayers:2,
+
+        createdAt:
+          room.createdAt
+      });
+
+    }
+  );
+
+
+  return result;
+}
+
+
+/* =========================================
+   تحديث قائمة الغرف للجميع
+   ========================================= */
+
+function broadcastRooms(){
+
+  const roomsList=
+    getPublicRooms();
+
+
+  wss.clients.forEach(
+    client=>{
+
+      if(
+        client.readyState===
+        WebSocket.OPEN
+      ){
+
+        send(client,{
+
+          type:"roomsList",
+
+          rooms:
+            roomsList
+        });
+      }
+
+    }
+  );
+}
+
+
+/* =========================================
+   إرسال رسالة للاعب
+   ========================================= */
+
+function send(ws,data){
+
+  if(
+    !ws||
+    ws.readyState!==
+    WebSocket.OPEN
+  ){
+    return;
+  }
+
+
+  ws.send(
+    JSON.stringify(
+      data
+    )
+  );
+}
+
+
+/* =========================================
+   إرسال للجميع داخل الغرفة
+   ========================================= */
+
+function broadcast(room,data){
+
+  room.players.forEach(
+    player=>{
+
+      if(
+        player.ws&&
+        player.ws.readyState===
+        WebSocket.OPEN
+      ){
+
+        send(
+          player.ws,
+          data
+        );
+      }
+
+    }
+  );
+}
+
+
+/* =========================================
+   توليد كود الغرفة
+   ========================================= */
+
+function generateRoomCode(){
+
+  let code;
+
+  do{
+
+    code=
+      Math.random()
+        .toString(36)
+        .substring(2,8)
+        .toUpperCase();
+
+  }while(
+    rooms.has(
+      code
+    )
+  );
+
+  return code;
+}
+
+
+/* =========================================
+   ID عشوائي للاعب
+   ========================================= */
+
+function randomId(){
+
+  return(
+    Date.now()
+      .toString(36)
+    +
+    Math.random()
+      .toString(36)
+      .substring(2,9)
+  );
+}
+
+
+/* =========================================
+   Shuffle
+   ========================================= */
+
+function shuffle(array){
+
+  const copy=
+    [...array];
+
+
+  for(
+    let i=
+      copy.length-1;
+    i>0;
+    i--
+  ){
+
+    const j=
+      Math.floor(
+        Math.random()*
+        (i+1)
+      );
+
+
+    [
+      copy[i],
+      copy[j]
+    ]=
+    [
+      copy[j],
+      copy[i]
+    ];
+  }
+
+
+  return copy;
+}
+
+
+/* =========================================
+   تنظيف الغرف القديمة
+   ========================================= */
+
+setInterval(()=>{
+
+  const now=
+    Date.now();
+
+
+  rooms.forEach(
+    room=>{
+
+      /*
+        الغرف المنتظرة القديمة
+      */
+
+      if(
+        room.phase==="waiting"&&
+        now-room.createdAt>
+        60*60*1000
+      ){
+
+        rooms.delete(
+          room.code
+        );
+      }
+
+
+      /*
+        الغرف الملغية
+      */
+
+      if(
+        room.phase==="cancelled"
+      ){
+
+        rooms.delete(
+          room.code
+        );
+      }
+
+    }
+  );
+
+
+  broadcastRooms();
+
+
+},60000);
+
+
+/* =========================================
+   تشغيل السيرفر
+   ========================================= */
+
+server.listen(PORT,()=>{
+
+  console.log(
+    "================================="
+  );
+
+  console.log(
+    "Football Auction Server Running"
+  );
+
+  console.log(
+    `Port: ${PORT}`
+  );
+
+  console.log(
+    "================================="
+  );
+
+});
