@@ -81,51 +81,30 @@ function chooseScorer(arr,seed=0){
   const ranked=pool.map(x=>({x,score:x.shooting*.55+x.overall*.30+x.passing*.08+x.stamina*.07})).sort((a,b)=>b.score-a.score);
   return ranked[((seed%ranked.length)+ranked.length)%ranked.length].x;
 }
-function squadFingerprint(team){return team.slice().sort((a,b)=>a-b).join("-")}
-function deterministicNoise(seed){let h=2166136261;for(let i=0;i<seed.length;i++){h^=seed.charCodeAt(i);h=Math.imul(h,16777619)}return ((h>>>0)%10000)/10000}
-function teamBalance(arr){
-  if(!arr.length)return 0;
-  const positions=new Set(arr.map(x=>x.position));
-  let score=0;
-  if(positions.has("GK"))score+=1;
-  if([...positions].some(x=>["RB","CB","LB"].includes(x)))score+=1;
-  if([...positions].some(x=>["CDM","CM","AM"].includes(x)))score+=1;
-  if([...positions].some(x=>["LW","RW","ST","AM"].includes(x)))score+=1;
-  return score/4;
-}
 function finishGame(r){
   r.phase="done"; clearTimeout(r.timer);
   const ps=[...r.players.values()]; if(ps.length!==2)return;
   const A=teamRatings(ps[0]), B=teamRatings(ps[1]);
+
+  // AI match engine: chance creation is driven by attack, midfield, passing and shooting,
+  // while the opponent's defence and goalkeeper reduce expected goals.
+  const strengthA=.34*A.att+.22*A.mid+.14*A.shooting+.12*A.passing+.10*A.overall+.08*A.gk;
+  const strengthB=.34*B.att+.22*B.mid+.14*B.shooting+.12*B.passing+.10*B.overall+.08*B.gk;
+  const pressureA=(A.att*0.40+A.mid*0.25+A.shooting*0.20+A.passing*0.15)-(B.def*0.55+B.gk*0.45);
+  const pressureB=(B.att*0.40+B.mid*0.25+B.shooting*0.20+B.passing*0.15)-(A.def*0.55+A.gk*0.45);
+
+  // AI score model: the score is calculated from the complete squad profile, not a random draw.
+  const xgA=clamp(0.55+pressureA*.038+(strengthA-strengthB)*.022,0.20,3.80);
+  const xgB=clamp(0.55+pressureB*.038+(strengthB-strengthA)*.022,0.20,3.80);
+  const finishingA=clamp(A.shooting*.60+A.att*.25+A.mid*.15,45,99);
+  const finishingB=clamp(B.shooting*.60+B.att*.25+B.mid*.15,45,99);
+  const defensiveA=clamp(A.defending*.62+A.gk*.38,45,99);
+  const defensiveB=clamp(B.defending*.62+B.gk*.38,45,99);
+  const ga=clamp(Math.round(xgA+(finishingA-70)*.012-(defensiveB-70)*.010),0,5);
+  const gb=clamp(Math.round(xgB+(finishingB-70)*.012-(defensiveA-70)*.010),0,5);
+
   const arrA=ps[0].team.map(id=>players.find(x=>x.id===id)).filter(Boolean);
   const arrB=ps[1].team.map(id=>players.find(x=>x.id===id)).filter(Boolean);
-  const balanceA=teamBalance(arrA), balanceB=teamBalance(arrB);
-  const strengthA=.27*A.att+.22*A.mid+.16*A.shooting+.12*A.passing+.11*A.overall+.07*A.gk+.05*A.def;
-  const strengthB=.27*B.att+.22*B.mid+.16*B.shooting+.12*B.passing+.11*B.overall+.07*B.gk+.05*B.def;
-  const pressureA=(A.att*.36+A.mid*.26+A.shooting*.20+A.passing*.18)-(B.def*.50+B.gk*.50);
-  const pressureB=(B.att*.36+B.mid*.26+B.shooting*.20+B.passing*.18)-(A.def*.50+A.gk*.50);
-  // محرك AI حتمي: نفس التشكيلتين تعطيان نفس النتيجة، لكن النتيجة تتأثر بالتوازن والتكتيك والجودة.
-  const seed=squadFingerprint(ps[0].team)+"|"+squadFingerprint(ps[1].team);
-  const nA=deterministicNoise(seed+"A")-.5, nB=deterministicNoise(seed+"B")-.5;
-  const xgA=clamp(.45+pressureA*.035+(strengthA-strengthB)*.018+balanceA*.28-balanceB*.10+nA*.28,.12,4.25);
-  const xgB=clamp(.45+pressureB*.035+(strengthB-strengthA)*.018+balanceB*.28-balanceA*.10+nB*.28,.12,4.25);
-  const finishingA=clamp(A.shooting*.58+A.att*.27+A.mid*.15,45,99);
-  const finishingB=clamp(B.shooting*.58+B.att*.27+B.mid*.15,45,99);
-  const defensiveA=clamp(A.defending*.58+A.def*.18+A.gk*.24,45,99);
-  const defensiveB=clamp(B.defending*.58+B.def*.18+B.gk*.24,45,99);
-  function goalsFromXg(xg,finishing,oppDef,noise){
-    const quality=(finishing-70)*.016-(oppDef-70)*.012+noise*.18;
-    const raw=xg+quality;
-    // توزيع أهداف قريب من الواقع مع سقف يمنع النتائج المبالغ فيها.
-    if(raw<.48)return 0;
-    if(raw<1.28)return 1;
-    if(raw<2.18)return 2;
-    if(raw<3.12)return 3;
-    if(raw<4.05)return 4;
-    return 5;
-  }
-  const ga=goalsFromXg(xgA,finishingA,defensiveB,nA);
-  const gb=goalsFromXg(xgB,finishingB,defensiveA,nB);
   const events=[];
   function goal(teamIndex,goalIndex){
     const minute=teamIndex===0
@@ -155,8 +134,7 @@ function finishGame(r){
   ];
   const goalLines=events.map(e=>`${e.minute}' — ⚽ ${e.scorer} (${e.team===0?ps[0].name:ps[1].name})${e.assist?` — صناعة ${e.assist}`:""}`);
   const fullLog=[...log.slice(0,4),...goalLines,...log.slice(4)];
-  fullLog.push(`🤖 بوت الذكاء الاصطناعي حلّل التشكيلتين: قوة ${ps[0].name} ${strengthA.toFixed(1)} مقابل ${strengthB.toFixed(1)}`);
-  fullLog.push(`🧠 القرار مبني على الهجوم والوسط والدفاع والحراسة والتمرير والتسديد، وليس على نتيجة عشوائية.`);
+  fullLog.push(`🤖 محرك المباراة: قوة ${ps[0].name} ${strengthA.toFixed(1)} مقابل ${strengthB.toFixed(1)}`);
   fullLog.push(`🎯 xG: ${xgA.toFixed(2)} مقابل ${xgB.toFixed(2)}`);
   fullLog.push(`📊 الاستحواذ المتوقع: ${possessionA}% مقابل ${possessionB}%`);
 
@@ -178,9 +156,7 @@ wss.on("connection",ws=>{
   ws.send(JSON.stringify({type:"publicRooms",rooms:publicRooms()}));
   ws.on("message",raw=>{
     let m;try{m=JSON.parse(raw)}catch{return}
-    if(m.type==="browse"){
-      ws.send(JSON.stringify({type:"publicRooms",rooms:publicRooms()}));
-    }else if(m.type==="create"){
+    if(m.type==="create"){
       room=roomCode();
       const teamSize=Number(m.teamSize)===5?5:11;
       const budget=teamSize===5?100:200;
@@ -202,7 +178,7 @@ wss.on("connection",ws=>{
       const r=rooms.get(room);if(!r)return;
 
       if(m.type==="start"&&[...r.players.keys()][0]===id&&r.players.size===2&&r.phase==="lobby"){
-        r.phase="auction";r.round=1;broadcastRooms();startRound(r);
+        r.phase="auction";r.round=1;startRound(r);
       }
 
       if(m.type==="bid"&&r.phase==="auction"){
@@ -252,26 +228,11 @@ wss.on("connection",ws=>{
   });
 
   ws.on("close",()=>{
-    if(!room||!rooms.has(room)) return;
-    const r=rooms.get(room);
-    const leaving=r.players.get(id);
-    r.clients.delete(ws);
-    r.players.delete(id);
-
-    clearTimeout(r.timer);
-    // بعد ظهور النتيجة، خروج أحد اللاعبين لا يؤثر على شاشة النتيجة عند الآخر.
-    // لا نرسل رسالة مغادرة ولا نغلق غرفة اللاعب الباقي.
-    if(r.phase==="done"){
-      if(r.players.size===0){rooms.delete(room);broadcastRooms();}
-      return;
-    }
-    // أثناء اللوبي أو المزاد فقط: خروج الخصم ينهي المباراة ويبلغ اللاعب الباقي.
-    if(r.players.size>0){
-      const message=`${leaving?.name||"خصمك"} غادر الغرفة. تم إنهاء المباراة.`;
-      broadcast(r,{type:"opponentLeft",message});
-      setTimeout(()=>{ if(rooms.get(room)===r) rooms.delete(room); broadcastRooms(); },500);
-    }else{
-      rooms.delete(room);broadcastRooms();
+    if(room&&rooms.has(room)){
+      const r=rooms.get(room);r.clients.delete(ws);
+      if(r.players.has(id)&&r.phase==="lobby"){
+        r.players.delete(id);broadcast(r,{type:"state",state:publicState(r)});broadcastRooms();
+      }
     }
   });
 });
