@@ -5,6 +5,21 @@ https=require("https"),
 WebSocket=require("ws");
 
 const PORT=process.env.PORT||3000;
+
+const server=http.createServer((req,res)=>{
+
+  res.writeHead(200,{
+    "Content-Type":"text/plain; charset=utf-8"
+  });
+
+  res.end("Football Auction Server Running");
+
+});
+
+const wss=new WebSocket.Server({
+  server
+});
+
 const rooms=new Map();
 const photoCache=new Map();
 
