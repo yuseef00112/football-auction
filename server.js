@@ -135,7 +135,8 @@ function finishGame(r){
   ];
   const goalLines=events.map(e=>`${e.minute}' — ⚽ ${e.scorer} (${e.team===0?ps[0].name:ps[1].name})${e.assist?` — صناعة ${e.assist}`:""}`);
   const fullLog=[...log.slice(0,4),...goalLines,...log.slice(4)];
-  fullLog.push(`🤖 محرك المباراة: قوة ${ps[0].name} ${strengthA.toFixed(1)} مقابل ${strengthB.toFixed(1)}`);
+  fullLog.push(`🤖 بوت الذكاء الاصطناعي حلّل التشكيلتين: قوة ${ps[0].name} ${strengthA.toFixed(1)} مقابل ${strengthB.toFixed(1)}`);
+  fullLog.push(`🧠 القرار مبني على الهجوم والوسط والدفاع والحراسة والتمرير والتسديد، وليس على نتيجة عشوائية.`);
   fullLog.push(`🎯 xG: ${xgA.toFixed(2)} مقابل ${xgB.toFixed(2)}`);
   fullLog.push(`📊 الاستحواذ المتوقع: ${possessionA}% مقابل ${possessionB}%`);
 
@@ -231,13 +232,21 @@ wss.on("connection",ws=>{
   });
 
   ws.on("close",()=>{
-    if(room&&rooms.has(room)){
-      const r=rooms.get(room);r.clients.delete(ws);
-      if(r.players.has(id)&&r.phase==="lobby"){
-        r.players.delete(id);broadcast(r,{type:"state",state:publicState(r)});
-        if(r.players.size===0){clearTimeout(r.timer);rooms.delete(room)}
-        broadcastRooms();
-      }
+    if(!room||!rooms.has(room)) return;
+    const r=rooms.get(room);
+    const leaving=r.players.get(id);
+    r.clients.delete(ws);
+    r.players.delete(id);
+
+    // في أي مرحلة: خروج أحد اللاعبين ينهي الغرفة بشكل عادل ويُبلغ الخصم.
+    // لا نغلق اتصال الخصم قبل أن يستقبل رسالة المغادرة ويضغط "موافق".
+    clearTimeout(r.timer);
+    if(r.players.size>0){
+      const message=`${leaving?.name||"خصمك"} غادر الغرفة. تم إنهاء المباراة.`;
+      broadcast(r,{type:"opponentLeft",message});
+      setTimeout(()=>{ if(rooms.get(room)===r) rooms.delete(room); broadcastRooms(); },500);
+    }else{
+      rooms.delete(room);broadcastRooms();
     }
   });
 });
