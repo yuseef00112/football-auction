@@ -85,8 +85,34 @@ button:hover,.primary:hover,.secondary:hover,.skip:hover{
   border-color:rgba(232,245,223,.2);
 }
 
+
+.roomModes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.roomMode{min-height:108px;border-radius:18px;padding:16px;display:flex;align-items:center;gap:12px;text-align:right}
+.roomMode span:last-child{display:flex;flex-direction:column;gap:6px}
+.roomMode small{opacity:.82;font-size:13px}
+.roomMode .modeIcon{font-size:30px}
+.roomMode.eleven{background:linear-gradient(135deg,#24d7c4,#1aa66d)!important;color:#05291b!important}
+.roomMode.five{background:linear-gradient(135deg,#0d6b38,#159052)!important;color:#f5fff6!important}
+@media(max-width:650px){.roomModes{grid-template-columns:1fr}.roomMode{min-height:88px}}
+
 </style></head><body><div class="app"><div class="top"><div class="logo">⚽ Yousef Games</div><div id="roomPill" class="pill">غير متصل</div></div>
-<section id="home" class="panel"><h2>🏆 Football Auction</h2><p class="muted">مزاد كروي بين لاعبين فقط — 11 جولة من الحراسة إلى الدفاع ثم الوسط والهجوم.</p><div class="row"><button class="primary" onclick="createRoom()">إنشاء غرفة</button><button class="secondary" onclick="showJoin()">دخول غرفة</button></div><div id="joinBox" class="hidden"><input id="joinCode" placeholder="كود الغرفة"><button class="primary" onclick="joinRoom()">دخول الغرفة</button></div><div class="notice">💰 يبدأ كل لاعب بـ 100M — بداية كل مزاد 1M — المؤقت 20 ثانية.</div></section>
+<section id="home" class="panel">
+<h2>🏆 Football Auction</h2>
+<p class="muted">اختر نوع الغرفة ثم ابدأ المزاد.</p>
+<div class="roomModes">
+  <button class="roomMode eleven" onclick="createRoom(11,200)">
+    <span class="modeIcon">⚽</span>
+    <span><b>إنشاء غرفة 11 لاعب</b><small>💰 200 مليون يورو لكل لاعب</small></span>
+  </button>
+  <button class="roomMode five" onclick="createRoom(5,100)">
+    <span class="modeIcon">⚽</span>
+    <span><b>إنشاء غرفة خماسية</b><small>💰 100 مليون يورو لكل لاعب</small></span>
+  </button>
+</div>
+<div class="row" style="margin-top:12px"><button class="secondary" onclick="showJoin()">دخول غرفة</button></div>
+<div id="joinBox" class="hidden"><input id="joinCode" placeholder="كود الغرفة"><button class="primary" onclick="joinRoom()">دخول الغرفة</button></div>
+<div class="notice">💰 السعر المكتوب في المزايدة هو السعر النهائي — ولا يتم جمعه على مزايدة الخصم.</div>
+</section>
 <section id="lobby" class="hidden"><div class="panel center"><h2>الغرفة <span id="roomCode"></span></h2><p>شارك الكود مع صاحبك</p><div class="big" id="lobbyCode"></div><div id="playersList" class="notice"></div><button id="startBtn" class="primary" onclick="startAuction()">ابدأ المزاد</button></div></section>
 <section id="game" class="hidden"><div class="grid"><div class="panel center"><div class="row" style="justify-content:space-between"><span class="roundtag">الجولة <b id="roundNo">1</b>/11</span><span id="roundLabel" class="muted">حراسة</span><span>💰 <b id="budget">100M</b></span></div><div id="playerCard" style="margin-top:10px"></div><div class="auction"><span id="currentBid">1</span>M</div><div id="timerBox" class="timer">⏱️ <span id="timer">20</span> ثانية</div><div id="roundPause" class="roundPause hidden"></div><div id="turnInfo" class="turnInfo">جاري تحديد صاحب الدور...</div><div class="row auctionButtons" style="justify-content:center;margin-top:12px"><div class="bidControl"><button id="minusBid" class="bidAdjust" onclick="changeBidAmount(-1)">−</button><div id="bidAmount" class="bidNumber">1</div><button id="plusBid" class="bidAdjust" onclick="changeBidAmount(1)">+</button></div><button id="bidBtn" class="primary" onclick="placeCustomBid()">زايد</button><button id="skipBtn" class="skip" onclick="skipAuction()">تخطي</button></div><div id="replacementBox" class="replacement hidden"></div><p id="bidMsg" class="muted"></p></div><div class="panel"><h3>👥 اللاعبان</h3><div id="livePlayers" class="notice"></div><h3>📢 آخر المزايدات</h3><div id="bidList" class="bidlist"></div><h3>📝 تشكيلتي</h3><div id="myTeam" class="team"></div></div></div></section>
 <section id="result" class="hidden"><div class="matchBoard"><div class="boardHead"><div><span class="boardTitle">🏆 YOUSEF GAMES</span><span class="boardSub">MATCH DAY</span></div><div class="finalBadge">FULL TIME</div></div><div class="scoreRow"><div class="teamName" id="finalAName">الفريق الأول</div><div class="scoreBig" id="matchResult">0 — 0</div><div class="teamName" id="finalBName">الفريق الثاني</div></div><div class="goalStrip" id="goalStrip"></div><div class="boardBody"><div><h3>⚽ الأهداف</h3><div id="scorers" class="scorers"></div></div><div><h3>📋 أحداث المباراة</h3><div id="matchLog" class="feed"></div></div></div><div class="row" style="justify-content:center;margin-top:14px"><button class="primary" onclick="showLineups()">عرض التشكيلتين</button><button id="replayBtn" class="secondary" onclick="replayMatch()">🔄 طلب مباراة أخرى</button><button class="secondary" onclick="returnToHome()">🏠 العودة إلى القائمة الرئيسية</button></div><div id="replayStatus" class="muted center" style="margin-top:9px"></div><div id="lineups" class="lineup" style="margin-top:12px"></div></div></section></div>
@@ -102,7 +128,7 @@ function returnToHome(){
   window.location.reload();
 }
 function showJoin(){document.getElementById("joinBox").classList.remove("hidden")}
-function createRoom(){connect({type:"create"})}
+function createRoom(teamSize=11,budget=200){connect({type:"create",teamSize,budget})}
 function joinRoom(){const code=document.getElementById("joinCode").value.trim().toUpperCase();if(!code){alert("اكتب كود الغرفة");return}connect({type:"join",room:code})}
 function getMinimumBid(){
   const currentBid=Number(state?.bid)||0;
