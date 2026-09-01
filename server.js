@@ -72,8 +72,10 @@ const server = http.createServer((req, res) => {
 
       res.end(content);
 
-    }
+       }
   );
+
+});
 
 const PORT=process.env.PORT||3000;
 const rooms=new Map();
