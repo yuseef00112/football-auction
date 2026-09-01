@@ -2966,17 +2966,25 @@
     }
 
 
-    if (
-      data.type === "loginSuccess"
-    ) {
+  if (
+  data.type === "loginSuccess"
+) {
 
-      if (msg) {
+  console.log("LOGIN SUCCESS - MSG:", msg);
 
-        socket.send(
-          JSON.stringify(msg)
-        );
+  if (msg) {
 
-      }
+    console.log("SENDING:", msg);
+
+    socket.send(
+      JSON.stringify(msg)
+    );
+
+  } else {
+
+    console.log("NO MSG TO SEND");
+
+  }
 
 
       socket.send(
