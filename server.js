@@ -3878,22 +3878,141 @@ const defensiveB = clamp(
     ),
   );
   const possessionB = 100 - possessionA;
-  const log = [
-    `1' — 🏟️ انطلاق المباراة`,
-    `12' — 🧠 استحواذ ${ps[0].name}: ${possessionA}% مقابل ${possessionB}%`,
-    `24' — ⚡ هجمة خطيرة وتدخل دفاعي في الوقت المناسب`,
-    `38' — 🧤 تصدٍ مهم من حارس المرمى`,
-    `45+1' — ⏱️ نهاية الشوط الأول`,
-    `57' — 🔥 ضغط متواصل ومحاولة مرتدة`,
-    `68' — 🧠 قراءة تكتيكية وتغييرات في طريقة اللعب`,
-    `79' — 🎯 فرصة محققة تضيع`,
-    `90+3' — 🏁 صافرة النهاية`,
-  ];
-  const goalLines = events.map(
-    (e) =>
-      `${e.minute}' — ⚽ ${e.scorer} (${e.team === 0 ? ps[0].name : ps[1].name})${e.assist ? ` — صناعة ${e.assist}` : ""}`,
+const matchVariation = deterministicNoise(
+  seed + "|" + Date.now() + "|" + ga + "|" + gb,
+);
+
+const dynamicEvents = [];
+
+function addEvent(minute, text) {
+  dynamicEvents.push({
+    minute,
+    text,
+  });
+}
+
+// بداية المباراة
+addEvent(1, "🏟️ انطلاق المباراة");
+
+// أحداث الشوط الأول حسب قوة الفريقين
+if (possessionA > possessionB) {
+  addEvent(
+    10 + Math.floor(matchVariation * 8),
+    `🧠 ${ps[0].name} يفرض الاستحواذ ويبدأ في السيطرة على وسط الملعب`,
   );
-  const fullLog = [...log.slice(0, 4), ...goalLines, ...log.slice(4)];
+} else {
+  addEvent(
+    10 + Math.floor(matchVariation * 8),
+    `🧠 ${ps[1].name} يفرض الاستحواذ ويبدأ في السيطرة على وسط الملعب`,
+  );
+}
+
+// هجمة للفريق صاحب الضغط الأعلى
+if (pressureA >= pressureB) {
+  addEvent(
+    22 + Math.floor(matchVariation * 6),
+    `⚡ هجمة خطيرة لـ ${ps[0].name} لكن الدفاع يتدخل في الوقت المناسب`,
+  );
+} else {
+  addEvent(
+    22 + Math.floor(matchVariation * 6),
+    `⚡ هجمة خطيرة لـ ${ps[1].name} لكن الدفاع يتدخل في الوقت المناسب`,
+  );
+}
+
+// إضافة الأهداف الحقيقية التي حدثت في المحاكاة
+events.forEach((e) => {
+  dynamicEvents.push({
+    minute: e.minute,
+    text:
+      `⚽ ${e.scorer} يسجل لصالح ` +
+      `${e.team === 0 ? ps[0].name : ps[1].name}` +
+      `${e.assist ? ` — صناعة ${e.assist}` : ""}`,
+  });
+});
+
+// حدث دفاعي قبل نهاية الشوط الأول
+if (ga > gb) {
+  addEvent(
+    39 + Math.floor(matchVariation * 5),
+    `🧤 ${ps[1].name} يحاول العودة للمباراة بضغط قوي قبل نهاية الشوط الأول`,
+  );
+} else if (gb > ga) {
+  addEvent(
+    39 + Math.floor(matchVariation * 5),
+    `🧤 ${ps[0].name} يحاول العودة للمباراة بضغط قوي قبل نهاية الشوط الأول`,
+  );
+} else {
+  addEvent(
+    39 + Math.floor(matchVariation * 5),
+    `🔥 المباراة متكافئة وفرصة خطيرة تضيع قبل نهاية الشوط الأول`,
+  );
+}
+
+// نهاية الشوط الأول
+addEvent(45, "⏱️ نهاية الشوط الأول");
+
+// بداية الشوط الثاني
+if (ga !== gb) {
+  const losingTeam = ga < gb ? ps[0].name : ps[1].name;
+
+  addEvent(
+    54 + Math.floor(matchVariation * 5),
+    `🔥 ${losingTeam} يبدأ الشوط الثاني بضغط هجومي لمحاولة العودة`,
+  );
+} else {
+  addEvent(
+    54 + Math.floor(matchVariation * 5),
+    "🔥 بداية قوية للشوط الثاني والفريقان يبحثان عن هدف التقدم",
+  );
+}
+
+// حدث تكتيكي حسب قوة الوسط
+if (A.mid > B.mid) {
+  addEvent(
+    67 + Math.floor(matchVariation * 5),
+    `🧠 ${ps[0].name} يسيطر على وسط الملعب ويقرأ المباراة بشكل أفضل`,
+  );
+} else if (B.mid > A.mid) {
+  addEvent(
+    67 + Math.floor(matchVariation * 5),
+    `🧠 ${ps[1].name} يسيطر على وسط الملعب ويقرأ المباراة بشكل أفضل`,
+  );
+} else {
+  addEvent(
+    67 + Math.floor(matchVariation * 5),
+    "🧠 معركة قوية في وسط الملعب ولا يوجد فريق قادر على فرض سيطرته بالكامل",
+  );
+}
+
+// نهاية المباراة حسب النتيجة
+if (ga > gb) {
+  addEvent(
+    89,
+    `🏁 ${ps[0].name} يحافظ على تقدمه حتى صافرة النهاية`,
+  );
+} else if (gb > ga) {
+  addEvent(
+    89,
+    `🏁 ${ps[1].name} يحافظ على تقدمه حتى صافرة النهاية`,
+  );
+} else {
+  addEvent(
+    89,
+    "🤝 الدقائق الأخيرة تمر بحذر شديد وتنتهي المباراة بالتعادل",
+  );
+}
+
+// صافرة النهاية
+addEvent(90, "🏁 صافرة نهاية المباراة");
+
+// ترتيب جميع الأحداث حسب الدقيقة
+dynamicEvents.sort((a, b) => a.minute - b.minute);
+
+// تحويل الأحداث إلى النص النهائي
+const fullLog = dynamicEvents.map(
+  (e) => `${e.minute}' — ${e.text}`,
+);
   fullLog.push(
     `🤖 بوت الذكاء الاصطناعي حلّل التشكيلتين: قوة ${ps[0].name} ${strengthA.toFixed(1)} مقابل ${strengthB.toFixed(1)}`,
   );
