@@ -3455,8 +3455,25 @@
         send({ type: "skip" });
       }
       function startAuction() {
-        send({ type: "start" });
-      }
+
+  if (
+    !ws ||
+    ws.readyState !== WebSocket.OPEN
+  ) {
+
+    alert("الاتصال بالسيرفر غير جاهز");
+
+    return;
+
+  }
+
+  ws.send(
+    JSON.stringify({
+      type: "start"
+    })
+  );
+
+}
       function showLineups() {
         const t = window.finalTeams;
         if (!t) return;
