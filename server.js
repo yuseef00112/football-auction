@@ -4,11 +4,66 @@ path=require("path"),
 https=require("https"),
 WebSocket=require("ws");
 const server = http.createServer((req, res) => {
-  res.writeHead(200, {
-    "Content-Type": "text/plain; charset=utf-8"
-  });
 
-  res.end("Football Auction Server Running");
+  let filePath = path.join(
+    __dirname,
+    "index.html"
+  );
+
+  if (
+    req.url &&
+    req.url !== "/"
+  ) {
+
+    filePath = path.join(
+      __dirname,
+      decodeURIComponent(req.url.split("?")[0])
+    );
+
+  }
+
+  fs.readFile(
+    filePath,
+    (error, content) => {
+
+      if (error) {
+
+        res.writeHead(404, {
+          "Content-Type": "text/plain; charset=utf-8"
+        });
+
+        res.end("File Not Found");
+
+        return;
+      }
+
+      let contentType = "text/html; charset=utf-8";
+
+      if (filePath.endsWith(".js")) {
+        contentType = "application/javascript";
+      }
+
+      if (filePath.endsWith(".css")) {
+        contentType = "text/css";
+      }
+
+      if (
+        filePath.endsWith(".png") ||
+        filePath.endsWith(".jpg") ||
+        filePath.endsWith(".jpeg")
+      ) {
+        contentType = "image/*";
+      }
+
+      res.writeHead(200, {
+        "Content-Type": contentType
+      });
+
+      res.end(content);
+
+    }
+  );
+
 });
 
 const PORT=process.env.PORT||3000;
