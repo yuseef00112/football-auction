@@ -2551,7 +2551,7 @@ wss.on("connection",(ws)=>{
        ========================================= */
 
     if(
-      data.type==="create"
+      data.type==="createRoom"
     ){
 
       if(!ws.playerId){
@@ -2573,7 +2573,7 @@ wss.on("connection",(ws)=>{
       */
 
   const roomType=
-  Number(data.teamSize)===5
+  data.roomType==="five"
     ?"five"
     :"eleven";
 
