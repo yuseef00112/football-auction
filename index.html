@@ -2922,6 +2922,32 @@
   });
 
 }
+      function joinRoom(){
+
+  const code =
+    document
+      .getElementById("joinCode")
+      .value
+      .trim()
+      .toUpperCase();
+
+  if(!code){
+
+    alert("اكتب كود الغرفة");
+
+    return;
+
+  }
+
+  connect({
+
+    type:"joinRoom",
+
+    code:code
+
+  });
+
+}
     function connect(msg) {
 
   const proto =
