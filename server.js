@@ -3,7 +3,13 @@ fs=require("fs"),
 path=require("path"),
 https=require("https"),
 WebSocket=require("ws");
-const server = http.createServer();
+const server = http.createServer((req, res) => {
+  res.writeHead(200, {
+    "Content-Type": "text/plain; charset=utf-8"
+  });
+
+  res.end("Football Auction Server Running");
+});
 
 const PORT=process.env.PORT||3000;
 const rooms=new Map();
@@ -2327,9 +2333,8 @@ function finishGame(r){
    WebSocket - إدارة الاتصال واللاعبين
    ========================================= */
 const wss = new WebSocket.WebSocketServer({
-  port: process.env.PORT || 3001
+  server: server
 });
-
 wss.on("connection",(ws)=>{
 
   ws.playerId=null;
