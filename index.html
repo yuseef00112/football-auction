@@ -2949,7 +2949,20 @@
 
 }
     function connect(msg) {
+if (
+  ws &&
+  ws.readyState === WebSocket.OPEN
+) {
 
+  if (msg) {
+    ws.send(
+      JSON.stringify(msg)
+    );
+  }
+
+  return;
+}
+      
   const proto =
     location.protocol === "https:"
       ? "wss"
