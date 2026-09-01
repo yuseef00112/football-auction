@@ -812,11 +812,27 @@
             >
               دخول
             </button>
-          </div>
-          <div class="publicRooms">
-            <h3>🌍 غرف مفتوحة للعب مع أشخاص آخرين</h3>
-            <div id="publicRoomsList" class="muted">جاري تحميل الغرف...</div>
-          </div>
+        <div class="publicRooms">
+
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+    
+    <h3>🌍 غرف مفتوحة للعب مع أشخاص آخرين</h3>
+
+    <button
+      class="secondary"
+      onclick="refreshPublicRooms()"
+      title="تحديث الغرف"
+    >
+      🔄 تحديث
+    </button>
+
+  </div>
+
+  <div id="publicRoomsList" class="muted">
+    جاري تحميل الغرف...
+  </div>
+
+</div>
         </div>
         <div id="homeProfile" class="pageView hidden">
           <h2>👤 الملف الشخصي</h2>
