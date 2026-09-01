@@ -5,19 +5,27 @@ https=require("https"),
 WebSocket=require("ws");
 const server = http.createServer((req, res) => {
 
-  let filePath = path.join(
-    __dirname,
-    "index.html"
-  );
+   const requestPath = req.url
+    ? decodeURIComponent(req.url.split("?")[0])
+    : "/";
+
+  let filePath;
 
   if (
-    req.url &&
-    req.url !== "/"
+    requestPath === "/" ||
+    requestPath === "/index.html"
   ) {
 
     filePath = path.join(
       __dirname,
-      decodeURIComponent(req.url.split("?")[0])
+      "index.html"
+    );
+
+  } else {
+
+    filePath = path.join(
+      __dirname,
+      requestPath.replace(/^\/+/, "")
     );
 
   }
@@ -47,12 +55,15 @@ const server = http.createServer((req, res) => {
         contentType = "text/css";
       }
 
+      if (filePath.endsWith(".png")) {
+        contentType = "image/png";
+      }
+
       if (
-        filePath.endsWith(".png") ||
         filePath.endsWith(".jpg") ||
         filePath.endsWith(".jpeg")
       ) {
-        contentType = "image/*";
+        contentType = "image/jpeg";
       }
 
       res.writeHead(200, {
@@ -63,8 +74,6 @@ const server = http.createServer((req, res) => {
 
     }
   );
-
-});
 
 const PORT=process.env.PORT||3000;
 const rooms=new Map();
