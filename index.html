@@ -2949,11 +2949,12 @@
   };
 
 
-  socket.onmessage = (e) => {
+ socket.onmessage = (e) => {
 
-    const data =
-      JSON.parse(e.data);
+  const data =
+    JSON.parse(e.data);
 
+  console.log("SERVER MESSAGE:", data);
 
     /*
       تأكد أن هذه الرسالة
