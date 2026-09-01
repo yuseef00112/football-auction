@@ -3314,6 +3314,61 @@ isHost =
           state = m.state;
           renderState();
         }
+        if (m.type === "gameStarted") {
+
+  console.log("GAME STARTED:", m);
+
+  if (m.room) {
+    room = m.room.code;
+  }
+
+  return;
+}
+
+
+if (m.type === "newRound") {
+
+  console.log("NEW ROUND:", m);
+
+  state = {
+    phase: "auction",
+
+    round: m.round,
+
+    totalRounds: m.totalRounds,
+
+    current: m.player,
+
+    bid: m.room?.currentPrice || 0,
+
+    highest: m.room?.currentBidder || null,
+
+    turn: m.room?.currentBidder || null,
+
+    endsAt:
+      m.endsAt ||
+      Date.now() + 30000,
+
+    players: Object.fromEntries(
+      (m.room?.players || []).map(
+        (p) => [
+          p.id,
+          {
+            name: p.name,
+            budget: p.money,
+            team: p.team || []
+          }
+        ]
+      )
+    ),
+
+    bids: []
+  };
+
+  renderState();
+
+  return;
+}
         if (m.type === "roundEnd") {
           showRoundResult(m);
         }
