@@ -36,14 +36,17 @@ function confirmOpponentLeft(){document.getElementById("opponentLeftOverlay").cl
 function showHomePage(page){["main","profile","ranking"].forEach(p=>document.getElementById("home"+p[0].toUpperCase()+p.slice(1)).classList.toggle("hidden",p!==page));if(page==="profile")send({type:"getProfile",profileId:PROFILE_ID,name:USER_NAME});if(page==="ranking")send({type:"getLeaderboard"})}
 function showJoin(){document.getElementById("joinBox").classList.remove("hidden")}
 function createRoom(teamSize,budget){
+
   connect({
-    type:"create",
-    teamSize,
-    budget,
-    name:USER_NAME,
-    photo:USER_PHOTO,
-    profileId:PROFILE_ID
+    type:"createRoom",
+
+    roomType:
+      Number(teamSize)===5
+        ?"five"
+        :"eleven"
   });
+
+}
 }
 function joinRoom(){const code=document.getElementById("joinCode").value.trim().toUpperCase();if(!code)return alert("اكتب كود الغرفة");connect({type:"join",room:code,name:USER_NAME,photo:USER_PHOTO,profileId:PROFILE_ID})}
 function connect(msg){
