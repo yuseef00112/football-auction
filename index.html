@@ -3024,6 +3024,30 @@
         beep(520, 0.12, "sine", 0.06);
         setTimeout(() => beep(780, 0.18, "sine", 0.05), 100);
       }
+     function renderTeam() {
+  const teamBox = document.getElementById("myTeam");
+  const mep = state?.players?.[me];
+
+  if (!teamBox || !mep) return;
+
+  teamBox.innerHTML =
+    mep.team
+      .map((id) => {
+        const p = PLAYERS.find((x) => x.id === id);
+
+        if (!p) return "";
+
+        return `
+          <div class="slot">
+            <b>${p.name}</b><br>
+            <span class="small">
+              ${p.position} · ⭐${p.overall}
+            </span>
+          </div>
+        `;
+      })
+      .join("") || "<div class='muted'>لم تشترِ لاعبين بعد</div>";
+}
       function handle(m) {
         if (m.type === "connected") {
           me = m.me;
@@ -3038,9 +3062,23 @@
           state = m.state;
           renderState();
         }
-        if (m.type === "roundEnd") {
-          showRoundResult(m);
-        }
+      if (m.type === "roundEnd") {
+  showRoundResult(m);
+
+  if (state && m.winnerId === me) {
+    const mep = state.players[me];
+
+    if (mep) {
+      if (!mep.team) mep.team = [];
+
+      if (!mep.team.includes(m.player.id)) {
+        mep.team.push(m.player.id);
+      }
+
+      renderTeam();
+    }
+  }
+}
         if (m.type === "matchPreparing") {
           document.getElementById("roundOverlay").classList.add("hidden");
           const o = document.getElementById("simulationOverlay");
