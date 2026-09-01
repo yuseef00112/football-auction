@@ -3562,8 +3562,13 @@ turn:
           document.getElementById("bidAmount").textContent = selectedBidAmount;
         const myTurn = state.currentTurn === me;
 
+const playersArray =
+  Array.isArray(state.players)
+    ? state.players
+    : Object.values(state.players);
+
 const turnPlayer =
-  state.players.find(
+  playersArray.find(
     (p) => p.id === state.currentTurn
   );
 
