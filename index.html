@@ -2908,15 +2908,19 @@
       function showJoin() {
         document.getElementById("joinBox").classList.remove("hidden");
       }
-   function createRoom(teamSize,budget){
+ function createRoom(teamSize,budget){
+
   connect({
-    type:"create",
-    teamSize:teamSize,
-    budget:budget,
-    name:USER_NAME,
-    photo:USER_PHOTO,
-    profileId:PROFILE_ID
+
+    type:"createRoom",
+
+    roomType:
+      Number(teamSize) === 5
+        ? "five"
+        : "eleven"
+
   });
+
 }
     function connect(msg) {
 
