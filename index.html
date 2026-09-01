@@ -806,23 +806,37 @@
           </div>
           <button class="joinBig" onclick="showJoin()">🚪 دخول الغرفة</button>
           <div id="joinBox" class="hidden">
-            <input id="joinCode" placeholder="كود الغرفة" /><button
-              class="primary"
-              onclick="joinRoom()"
-            >
-              دخول
-            </button>
-      <div class="publicRooms">
-  <h3>🌍 غرف مفتوحة للعب مع أشخاص آخرين</h3>
+  <input id="joinCode" placeholder="كود الغرفة" />
 
-  <button onclick="refreshPublicRooms()">
+  <button
+    class="primary"
+    onclick="joinRoom()"
+  >
+    دخول
+  </button>
+</div>
+
+
+<div class="publicRooms">
+
+  <h3>
+    🌍 غرف مفتوحة للعب مع أشخاص آخرين
+  </h3>
+
+  <button
+    type="button"
+    onclick="refreshPublicRooms()"
+  >
     🔄 تحديث الغرف
   </button>
 
-  <div id="publicRoomsList" class="muted">
+  <div
+    id="publicRoomsList"
+    class="muted"
+  >
     جاري تحميل الغرف...
   </div>
-</div>
+
 </div>
         </div>
         <div id="homeProfile" class="pageView hidden">
