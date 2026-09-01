@@ -2326,13 +2326,7 @@ function finishGame(r){
    WebSocket - إدارة الاتصال واللاعبين
    ========================================= */
 const wss = new WebSocket.WebSocketServer({
-  noServer: true
-});
-
-server.on("upgrade", (request, socket, head) => {
-  wss.handleUpgrade(request, socket, head, (ws) => {
-    wss.emit("connection", ws, request);
-  });
+  port: process.env.PORT || 3001
 });
 
 wss.on("connection",(ws)=>{
