@@ -37,7 +37,65 @@ function showHomePage(page){["main","profile","ranking"].forEach(p=>document.get
 function showJoin(){document.getElementById("joinBox").classList.remove("hidden")}
 function createRoom(teamSize,budget){connect({type:"create",teamSize,budget,name:USER_NAME,photo:USER_PHOTO,profileId:PROFILE_ID})}
 function joinRoom(){const code=document.getElementById("joinCode").value.trim().toUpperCase();if(!code)return alert("اكتب كود الغرفة");connect({type:"join",room:code,name:USER_NAME,photo:USER_PHOTO,profileId:PROFILE_ID})}
-function connect(msg){const proto=location.protocol==="https:"?"wss":"ws";ws=new WebSocket(`${proto}://${location.host}`);ws.onopen=()=>{ws.send(JSON.stringify(msg));ws.send(JSON.stringify({type:"getLeaderboard"}));ws.send(JSON.stringify({type:"getProfile",profileId:PROFILE_ID,name:USER_NAME}))};ws.onmessage=e=>handle(JSON.parse(e.data))}
+function connect(msg){
+
+  const proto =
+    location.protocol === "https:"
+      ? "wss"
+      : "ws";
+
+  ws = new WebSocket(
+    `${proto}://${location.host}`
+  );
+
+  ws.onopen = () => {
+
+    ws.send(JSON.stringify({
+      type: "login",
+      playerId: PROFILE_ID,
+      name: USER_NAME,
+      photo: USER_PHOTO
+    }));
+
+  };
+
+  ws.onmessage = e => {
+
+    const data =
+      JSON.parse(e.data);
+
+    /*
+      بعد نجاح تسجيل اللاعب
+      نفذ الرسالة المطلوبة
+    */
+
+    if(
+      data.type === "loginSuccess"
+    ){
+
+      if(msg){
+
+        ws.send(
+          JSON.stringify(msg)
+        );
+
+      }
+
+      ws.send(JSON.stringify({
+        type: "getLeaderboard"
+      }));
+
+      ws.send(JSON.stringify({
+        type: "getProfile"
+      }));
+
+    }
+
+    handle(data);
+
+  };
+
+}
 function send(x){if(ws&&ws.readyState===1)ws.send(JSON.stringify(x))}function beep(freq=650,dur=.09,type="sine",gain=.035){try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(gain,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur)}catch(e){}}function bidSound(){beep(780,.07,"triangle",.06);setTimeout(()=>beep(980,.08,"triangle",.04),45)}function tickSound(){beep(480,.07,"square",.035)}function winSound(){beep(520,.12,"sine",.06);setTimeout(()=>beep(780,.18,"sine",.05),100)}
 function handle(m){
  if(m.type==="connected"){me=m.me;room=m.room;isHost=m.host;document.getElementById("roomPill").textContent=room;document.getElementById("roomCode").textContent=room;document.getElementById("lobbyCode").textContent=room;show("lobby")}
