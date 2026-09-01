@@ -2728,12 +2728,12 @@ wss.on("connection",(ws)=>{
        دخول الغرفة مباشرة من قائمة الغرف
        ========================================= */
 
-    if(
-      data.type==="joinRoom"
-    ){
+   if(
+  data.type==="join"
+){
 
-      const code=
-        data.code;
+  const code=
+    data.room;
 
       const room=
         rooms.get(
