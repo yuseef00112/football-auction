@@ -3560,8 +3560,17 @@ turn:
             : 1;
           selectedBidAmount = Math.max(selectedBidAmount, minimum);
           document.getElementById("bidAmount").textContent = selectedBidAmount;
-         const myTurn = true,
-  turnName = "أنت";
+        const myTurn = state.currentTurn === me;
+
+const turnPlayer =
+  state.players.find(
+    (p) => p.id === state.currentTurn
+  );
+
+const turnName =
+  turnPlayer
+    ? turnPlayer.name
+    : "—";
           const ti = document.getElementById("turnInfo");
           ti.textContent = myTurn
             ? "🟢 دورك في المزايدة"
