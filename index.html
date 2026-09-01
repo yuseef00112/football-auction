@@ -3328,7 +3328,10 @@ isHost =
 
 if (m.type === "newRound") {
 
-  console.log("NEW ROUND:", m);
+ console.log(
+  "NEW ROUND:",
+  JSON.stringify(m, null, 2)
+);
 
   state = {
     phase: "auction",
@@ -3341,10 +3344,13 @@ if (m.type === "newRound") {
 
     bid: m.room?.currentPrice || 0,
 
-    highest: m.room?.currentBidder || null,
+highest: m.room?.currentBidder || null,
 
-    turn: m.room?.currentBidder || null,
-
+turn:
+  m.room?.currentBidder ||
+  m.room?.turn ||
+  m.room?.currentTurn ||
+  null,
     endsAt:
       m.endsAt ||
       Date.now() + 30000,
