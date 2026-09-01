@@ -858,6 +858,9 @@
               ><span id="roundLabel" class="muted">حراسة</span
               ><span>💰 <b id="budget">100M</b></span>
             </div>
+            <button class="secondary" onclick="confirmExitGame()">
+  🏠 الرجوع للقائمة الرئيسية
+</button>
             <div id="playerCard" style="margin-top: 10px"></div>
             <div class="auction"><span id="currentBid">1</span>M</div>
             <div id="timerBox" class="timer">
@@ -980,6 +983,26 @@
         </div>
       </div>
     </div>
+    <div id="exitConfirmOverlay" class="replayOverlay hidden">
+  <div class="replayPanel">
+    <h2>⚠️ هل تريد الخروج؟</h2>
+
+    <p class="muted">
+      سيتم الخروج من الغرفة والعودة إلى القائمة الرئيسية.
+    </p>
+
+    <div class="replayButtons">
+      <button class="acceptBtn" onclick="exitGameConfirmed()">
+        نعم، خروج
+      </button>
+
+      <button class="secondary" onclick="cancelExitGame()">
+        إلغاء
+      </button>
+    </div>
+  </div>
+</div>
+    
     <script>
       const PLAYERS = [
         {
@@ -2891,6 +2914,25 @@
           ws && ws.close();
         } catch (e) {}
       }
+            function confirmExitGame() {
+        document
+          .getElementById("exitConfirmOverlay")
+          .classList.remove("hidden");
+      }
+
+      function cancelExitGame() {
+        document
+          .getElementById("exitConfirmOverlay")
+          .classList.add("hidden");
+      }
+
+      function exitGameConfirmed() {
+        document
+          .getElementById("exitConfirmOverlay")
+          .classList.add("hidden");
+
+        goHome();
+      }
       function confirmOpponentLeft() {
         document.getElementById("opponentLeftOverlay").classList.add("hidden");
         goHome();
@@ -3395,6 +3437,17 @@
       window.addEventListener("load", () => {
         setTimeout(() => connect({ type: "browse" }), 50);
       });
+      function confirmExitGame() {
+  document
+    .getElementById("exitConfirmOverlay")
+    .classList.remove("hidden");
+}
+
+function cancelExitGame() {
+  document
+    .getElementById("exitConfirmOverlay")
+    .classList.add("hidden");
+}
     </script>
     <div id="opponentLeftOverlay" class="roundOverlay hidden">
       <div class="roundPanel" style="max-width: 430px">
