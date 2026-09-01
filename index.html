@@ -2872,7 +2872,25 @@
         userParams.get("photo") ||
         localStorage.getItem("footballAuctionPhoto") ||
         "";
-      const PROFILE_ID = userParams.get("profileId") || USER_NAME;
+     let PROFILE_ID =
+  userParams.get("profileId") ||
+  localStorage.getItem("footballAuctionProfileId");
+
+if (!PROFILE_ID) {
+
+  PROFILE_ID =
+    "player_" +
+    Date.now() +
+    "_" +
+    Math.random()
+      .toString(36)
+      .slice(2, 10);
+
+  localStorage.setItem(
+    "footballAuctionProfileId",
+    PROFILE_ID
+  );
+}
       let selectedBidAmount = 1,
         lastAuctionPlayerId = null;
       function show(id) {
