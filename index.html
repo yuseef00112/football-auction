@@ -47,7 +47,7 @@ function createRoom(teamSize,budget){
   });
 
 }
-}
+
 function joinRoom(){const code=document.getElementById("joinCode").value.trim().toUpperCase();if(!code)return alert("اكتب كود الغرفة");connect({type:"join",room:code,name:USER_NAME,photo:USER_PHOTO,profileId:PROFILE_ID})}
 function connect(msg){
 
