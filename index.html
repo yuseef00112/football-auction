@@ -3599,13 +3599,21 @@ turn:
                   `<div class="bid"><span>${b.name}</span><b>${b.amount}M</b></div>`,
               )
               .join("") || "<span class=muted>لا توجد مزايدات بعد</span>";
-          document.getElementById("myTeam").innerHTML =
-            mep.team
-              .map((id) => {
-                const q = PLAYERS.find((x) => x.id === id);
-                return `<div class="slot"><b>${q.name}</b><br><span class="small">${q.position} · ⭐${q.overall}</span></div>`;
-              })
-              .join("") || "<div class=muted>لم تشترِ لاعبين بعد</div>";
+         document.getElementById("myTeam").innerHTML =
+  (mep.teamPlayers || [])
+    .map((q) => {
+      return `
+        <div class="slot">
+          <b>${q.name}</b>
+          <br>
+          <span class="small">
+            ${q.position} · ⭐${q.overall}
+          </span>
+        </div>
+      `;
+    })
+    .join("") ||
+  "<div class=muted>لم تشترِ لاعبين بعد</div>";
           clearInterval(timerHandle);
           timerHandle = setInterval(() => {
             const left = Math.max(
