@@ -2551,7 +2551,7 @@ wss.on("connection",(ws)=>{
        ========================================= */
 
     if(
-      data.type==="createRoom"
+      data.type==="create"
     ){
 
       if(!ws.playerId){
@@ -2572,10 +2572,10 @@ wss.on("connection",(ws)=>{
         five = 5 لاعبين
       */
 
-      const roomType=
-        data.roomType==="five"
-          ?"five"
-          :"eleven";
+  const roomType=
+  Number(data.teamSize)===5
+    ?"five"
+    :"eleven";
 
 
       /*
