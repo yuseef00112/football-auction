@@ -3404,6 +3404,8 @@ function startGame(room){
 
   room.round=0;
 
+   room.currentTurn = null;
+
 
   /*
     توزيع اللاعبين يكون عشوائياً
@@ -3534,6 +3536,39 @@ function nextRound(room){
 
   room.phase=
     "bidding";
+   /*
+  تحديد اللاعب الذي يبدأ الجولة
+*/
+
+const playerIds =
+  [...room.players.keys()];
+
+
+/*
+  تبديل اللاعب الذي يبدأ
+  في كل جولة
+*/
+
+if (
+  !room.currentTurn
+) {
+
+  room.currentTurn =
+    playerIds[0];
+
+} else {
+
+  const currentIndex =
+    playerIds.indexOf(
+      room.currentTurn
+    );
+
+  room.currentTurn =
+    playerIds[
+      (currentIndex + 1) %
+      playerIds.length
+    ];
+}
 
 
   /*
@@ -3613,6 +3648,8 @@ function nextRound(room){
 
     player:
       currentPlayer,
+     currentTurn:
+  room.currentTurn,
 
     room:
       getRoomData(
