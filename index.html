@@ -2918,54 +2918,106 @@
     profileId:PROFILE_ID
   });
 }
-      function connect(msg) {
-        const proto = location.protocol === "https:" ? "wss" : "ws";
+    function connect(msg) {
 
-        ws = new WebSocket(`${proto}://${location.host}`);
+  const proto =
+    location.protocol === "https:"
+      ? "wss"
+      : "ws";
 
-        ws.onopen = () => {
-          ws.send(
-            JSON.stringify({
-              type: "login",
-              playerId: PROFILE_ID,
-              name: USER_NAME,
-              photo: USER_PHOTO,
-            }),
-          );
-        };
+  const socket =
+    new WebSocket(
+      `${proto}://${location.host}`
+    );
 
-        ws.onmessage = (e) => {
-          const data = JSON.parse(e.data);
+  ws = socket;
 
-          /*
-        بعد نجاح تسجيل اللاعب
-        نفذ الرسالة المطلوبة
-      */
 
-          if (data.type === "loginSuccess") {
-            if (msg) {
-              ws.send(JSON.stringify(msg));
-            }
+  socket.onopen = () => {
 
-            ws.send(
-              JSON.stringify({
-                type: "getLeaderboard",
-              }),
-            );
+    console.log("WebSocket OPEN");
 
-            ws.send(
-              JSON.stringify({
-                type: "getProfile",
-              }),
-            );
-          }
+    socket.send(
+      JSON.stringify({
+        type: "login",
+        playerId: PROFILE_ID,
+        name: USER_NAME,
+        photo: USER_PHOTO
+      })
+    );
 
-          handle(data);
-        };
+  };
+
+
+  socket.onmessage = (e) => {
+
+    const data =
+      JSON.parse(e.data);
+
+
+    /*
+      تأكد أن هذه الرسالة
+      تخص آخر اتصال فقط
+    */
+
+    if (ws !== socket) {
+      return;
+    }
+
+
+    if (
+      data.type === "loginSuccess"
+    ) {
+
+      if (msg) {
+
+        socket.send(
+          JSON.stringify(msg)
+        );
+
       }
-      function send(x) {
-        if (ws && ws.readyState === 1) ws.send(JSON.stringify(x));
-      }
+
+
+      socket.send(
+        JSON.stringify({
+          type: "getLeaderboard"
+        })
+      );
+
+
+      socket.send(
+        JSON.stringify({
+          type: "getProfile"
+        })
+      );
+
+    }
+
+
+    handle(data);
+
+  };
+
+
+  socket.onerror = (error) => {
+
+    console.error(
+      "WebSocket ERROR:",
+      error
+    );
+
+  };
+
+
+  socket.onclose = () => {
+
+    console.log(
+      "WebSocket CLOSED"
+    );
+
+  };
+
+}
       function beep(freq = 650, dur = 0.09, type = "sine", gain = 0.035) {
         try {
           audioCtx =
