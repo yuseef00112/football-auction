@@ -3604,6 +3604,101 @@ function teamBalance(arr) {
     score += 1;
   return score / 4;
 }
+function analyzeTeamAI(team) {
+  const squad = team
+    .map((id) => players.find((p) => p.id === id))
+    .filter(Boolean);
+
+  const gk = squad.filter((p) => p.position === "GK");
+
+  const defenders = squad.filter((p) =>
+    ["RB", "CB", "LB"].includes(p.position),
+  );
+
+  const midfielders = squad.filter((p) =>
+    ["CDM", "CM", "AM"].includes(p.position),
+  );
+
+  const attackers = squad.filter((p) =>
+    ["LW", "RW", "ST"].includes(p.position),
+  );
+
+  const avg = (arr, key = "overall") => {
+    if (!arr.length) return 35;
+
+    return (
+      arr.reduce((sum, p) => sum + (Number(p[key]) || 0), 0) /
+      arr.length
+    );
+  };
+
+  const gkStrength = gk.length
+    ? avg(gk, "overall") * 0.45 +
+      avg(gk, "defending") * 0.25 +
+      avg(gk, "physical") * 0.1 +
+      avg(gk, "passing") * 0.2
+    : 30;
+
+  const defenseStrength = defenders.length
+    ? avg(defenders, "defending") * 0.55 +
+      avg(defenders, "physical") * 0.2 +
+      avg(defenders, "pace") * 0.1 +
+      avg(defenders, "overall") * 0.15
+    : 35;
+
+  const midfieldStrength = midfielders.length
+    ? avg(midfielders, "passing") * 0.4 +
+      avg(midfielders, "dribbling") * 0.2 +
+      avg(midfielders, "stamina") * 0.15 +
+      avg(midfielders, "defending") * 0.1 +
+      avg(midfielders, "overall") * 0.15
+    : 35;
+
+  const attackStrength = attackers.length
+    ? avg(attackers, "shooting") * 0.45 +
+      avg(attackers, "pace") * 0.15 +
+      avg(attackers, "dribbling") * 0.2 +
+      avg(attackers, "overall") * 0.2
+    : 35;
+
+  const overall = avg(squad, "overall");
+
+  let formationPenalty = 0;
+
+  // عقوبات الذكاء الاصطناعي للتشكيلة غير المتوازنة
+  if (!gk.length) formationPenalty += 18;
+  if (defenders.length < 2) formationPenalty += 12;
+  if (midfielders.length < 2) formationPenalty += 8;
+  if (attackers.length < 1) formationPenalty += 6;
+
+  const balance =
+    Math.max(
+      0,
+      100 -
+        Math.abs(defenseStrength - midfieldStrength) * 0.45 -
+        Math.abs(midfieldStrength - attackStrength) * 0.45 -
+        formationPenalty,
+    );
+
+  const power =
+    gkStrength * 0.13 +
+    defenseStrength * 0.25 +
+    midfieldStrength * 0.28 +
+    attackStrength * 0.25 +
+    overall * 0.09 -
+    formationPenalty;
+
+  return {
+    gkStrength,
+    defenseStrength,
+    midfieldStrength,
+    attackStrength,
+    overall,
+    balance,
+    formationPenalty,
+    power,
+  };
+}
 function finishGame(r) {
   r.phase = "done";
   clearTimeout(r.timer);
@@ -3611,6 +3706,8 @@ function finishGame(r) {
   if (ps.length !== 2) return;
   const A = teamRatings(ps[0]),
     B = teamRatings(ps[1]);
+  const aiA = analyzeTeamAI(ps[0].team);
+const aiB = analyzeTeamAI(ps[1].team);
   const arrA = ps[0].team
     .map((id) => players.find((x) => x.id === id))
     .filter(Boolean);
@@ -3619,22 +3716,29 @@ function finishGame(r) {
     .filter(Boolean);
   const balanceA = teamBalance(arrA),
     balanceB = teamBalance(arrB);
-  const strengthA =
+const strengthA =
+  aiA.power * 0.65 +
+  (
     0.27 * A.att +
     0.22 * A.mid +
     0.16 * A.shooting +
     0.12 * A.passing +
     0.11 * A.overall +
     0.07 * A.gk +
-    0.05 * A.def;
-  const strengthB =
+    0.05 * A.def
+  ) * 0.35;
+
+const strengthB =
+  aiB.power * 0.65 +
+  (
     0.27 * B.att +
     0.22 * B.mid +
     0.16 * B.shooting +
     0.12 * B.passing +
     0.11 * B.overall +
     0.07 * B.gk +
-    0.05 * B.def;
+    0.05 * B.def
+  ) * 0.35;
   const pressureA =
     A.att * 0.36 +
     A.mid * 0.26 +
@@ -3653,45 +3757,75 @@ function finishGame(r) {
   const nA = deterministicNoise(seed + "A") - 0.5,
     nB = deterministicNoise(seed + "B") - 0.5;
   const xgA = clamp(
-    0.45 +
-      pressureA * 0.035 +
-      (strengthA - strengthB) * 0.018 +
-      balanceA * 0.28 -
-      balanceB * 0.1 +
-      nA * 0.28,
-    0.12,
-    4.25,
-  );
-  const xgB = clamp(
-    0.45 +
-      pressureB * 0.035 +
-      (strengthB - strengthA) * 0.018 +
-      balanceB * 0.28 -
-      balanceA * 0.1 +
-      nB * 0.28,
-    0.12,
-    4.25,
-  );
+  0.45 +
+    pressureA * 0.035 +
+    (strengthA - strengthB) * 0.018 +
+    balanceA * 0.18 -
+    balanceB * 0.08 +
+    aiA.attackStrength * 0.012 +
+    aiA.midfieldStrength * 0.008 -
+    aiB.defenseStrength * 0.012 -
+    aiB.gkStrength * 0.008 +
+    aiA.balance * 0.006 +
+    nA * 0.22,
+  0.12,
+  4.25,
+);
+
+const xgB = clamp(
+  0.45 +
+    pressureB * 0.035 +
+    (strengthB - strengthA) * 0.018 +
+    balanceB * 0.18 -
+    balanceA * 0.08 +
+    aiB.attackStrength * 0.012 +
+    aiB.midfieldStrength * 0.008 -
+    aiA.defenseStrength * 0.012 -
+    aiA.gkStrength * 0.008 +
+    aiB.balance * 0.006 +
+    nB * 0.22,
+  0.12,
+  4.25,
+);
   const finishingA = clamp(
-    A.shooting * 0.58 + A.att * 0.27 + A.mid * 0.15,
-    45,
-    99,
-  );
-  const finishingB = clamp(
-    B.shooting * 0.58 + B.att * 0.27 + B.mid * 0.15,
-    45,
-    99,
-  );
-  const defensiveA = clamp(
-    A.defending * 0.58 + A.def * 0.18 + A.gk * 0.24,
-    45,
-    99,
-  );
-  const defensiveB = clamp(
-    B.defending * 0.58 + B.def * 0.18 + B.gk * 0.24,
-    45,
-    99,
-  );
+  A.shooting * 0.42 +
+    A.att * 0.18 +
+    A.mid * 0.10 +
+    aiA.attackStrength * 0.25 +
+    aiA.overall * 0.05,
+  45,
+  99,
+);
+
+const finishingB = clamp(
+  B.shooting * 0.42 +
+    B.att * 0.18 +
+    B.mid * 0.10 +
+    aiB.attackStrength * 0.25 +
+    aiB.overall * 0.05,
+  45,
+  99,
+);
+
+const defensiveA = clamp(
+  A.defending * 0.35 +
+    A.def * 0.15 +
+    A.gk * 0.15 +
+    aiA.defenseStrength * 0.20 +
+    aiA.gkStrength * 0.15,
+  45,
+  99,
+);
+
+const defensiveB = clamp(
+  B.defending * 0.35 +
+    B.def * 0.15 +
+    B.gk * 0.15 +
+    aiB.defenseStrength * 0.20 +
+    aiB.gkStrength * 0.15,
+  45,
+  99,
+);
   function goalsFromXg(xg, finishing, oppDef, noise) {
     const quality =
       (finishing - 70) * 0.016 - (oppDef - 70) * 0.012 + noise * 0.18;
