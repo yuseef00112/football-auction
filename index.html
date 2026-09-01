@@ -3615,18 +3615,26 @@ isHost =
       function skipAuction() {
         send({ type: "skip" });
       }
-      function startAuction() {
+     function startAuction() {
 
-  if (
-    !ws ||
-    ws.readyState !== WebSocket.OPEN
-  ) {
+  console.log("START BUTTON CLICKED");
+
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
 
     alert("الاتصال بالسيرفر غير جاهز");
 
     return;
-
   }
+
+  console.log("SENDING START");
+
+  ws.send(
+    JSON.stringify({
+      type: "start"
+    })
+  );
+
+}
 
   ws.send(
     JSON.stringify({
