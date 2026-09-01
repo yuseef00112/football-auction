@@ -3303,12 +3303,15 @@
               )
               .join("") || "<span class=muted>لا توجد مزايدات بعد</span>";
           document.getElementById("myTeam").innerHTML =
-            mep.team
-              .map((id) => {
-                const q = PLAYERS.find((x) => x.id === id);
-                return `<div class="slot"><b>${q.name}</b><br><span class="small">${q.position} · ⭐${q.overall}</span></div>`;
-              })
-              .join("") || "<div class=muted>لم تشترِ لاعبين بعد</div>";
+           mep.team
+  .map((id) => {
+    const q = PLAYERS.find((x) => x.id === id);
+
+    if (!q) return "";
+
+    return `<div class="slot"><b>${q.name}</b><br><span class="small">${q.position} · ⭐${q.overall}</span></div>`;
+  })
+  .join("") || "<div class=muted>لم تشترِ لاعبين بعد</div>";
           clearInterval(timerHandle);
           timerHandle = setInterval(() => {
             const left = Math.max(
