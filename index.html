@@ -3224,19 +3224,10 @@ if (
     )
   };
 
-  const myPlayer =
-    (m.room.players || []).find(
-      (p) => p.isMe
-    );
+ me = PROFILE_ID;
 
-  if (myPlayer) {
-    me = myPlayer.id;
-  }
-
-  isHost =
-    myPlayer &&
-    m.room.ownerId === myPlayer.id;
-
+isHost =
+  m.room.ownerId === PROFILE_ID;
   renderState();
 
   return;
