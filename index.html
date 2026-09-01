@@ -3089,11 +3089,31 @@
         setTimeout(() => beep(780, 0.18, "sine", 0.05), 100);
       }
       function handle(m) {
-        if (m.type === "roomCreated") {
+      if (m.type === "roomCreated") {
 
   console.log("ROOM CREATED:", m.room);
 
   room = m.room.code;
+
+  state = {
+    phase: "lobby",
+
+    players: Object.fromEntries(
+      (m.room.players || []).map(
+        (p) => [p.id, {
+          name: p.name,
+          budget: p.money,
+          team: p.team || []
+        }]
+      )
+    )
+  };
+
+  isHost =
+    m.room.ownerId === PROFILE_ID ||
+    m.room.ownerId === m.room.players.find(
+      p => p.isMe
+    )?.id;
 
   document.getElementById("roomPill").textContent =
     m.room.code;
@@ -3104,27 +3124,77 @@
   document.getElementById("lobbyCode").textContent =
     m.room.code;
 
-  show("lobby");
+  renderState();
 
   return;
 
 }
-        if (m.type === "roomJoined") {
+
+}
+       if (m.type === "roomJoined") {
 
   console.log("ROOM JOINED:", m.room);
 
-  room = m.room;
+  room = m.room.code;
 
-  show("lobby");
+  state = {
+    phase: "lobby",
+
+    players: Object.fromEntries(
+      (m.room.players || []).map(
+        (p) => [p.id, {
+          name: p.name,
+          budget: p.money,
+          team: p.team || []
+        }]
+      )
+    )
+  };
+
+  isHost =
+    m.room.ownerId === PROFILE_ID ||
+    m.room.ownerId === m.room.players.find(
+      p => p.isMe
+    )?.id;
+
+  document.getElementById("roomPill").textContent =
+    m.room.code;
+
+  document.getElementById("roomCode").textContent =
+    m.room.code;
+
+  document.getElementById("lobbyCode").textContent =
+    m.room.code;
+
+  renderState();
 
   return;
 
 }
-        if (m.type === "roomUpdate") {
+      if (m.type === "roomUpdate") {
 
   console.log("ROOM UPDATE:", m.room);
 
-  room = m.room;
+  room = m.room.code;
+
+  state = {
+    phase: "lobby",
+
+    players: Object.fromEntries(
+      (m.room.players || []).map(
+        (p) => [
+          p.id,
+          {
+            name: p.name,
+            budget: p.money,
+            team: p.team || []
+          }
+        ]
+      )
+    )
+  };
+
+  renderState();
 
   return;
 
