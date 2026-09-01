@@ -2998,6 +2998,26 @@
         setTimeout(() => beep(780, 0.18, "sine", 0.05), 100);
       }
       function handle(m) {
+        if (m.type === "roomCreated") {
+
+  console.log("ROOM CREATED:", m.room);
+
+  room = m.room.code;
+
+  document.getElementById("roomPill").textContent =
+    m.room.code;
+
+  document.getElementById("roomCode").textContent =
+    m.room.code;
+
+  document.getElementById("lobbyCode").textContent =
+    m.room.code;
+
+  show("lobby");
+
+  return;
+
+}
         if (m.type === "connected") {
           me = m.me;
           room = m.room;
