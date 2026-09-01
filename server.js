@@ -2401,6 +2401,25 @@ function finishGame(r){
 const wss = new WebSocket.WebSocketServer({
   server: server
 });
+function getProfile(playerId){
+
+  if(!profiles[playerId]){
+
+    profiles[playerId]={
+      name:"لاعب",
+      photo:"",
+      matches:0,
+      wins:0,
+      losses:0,
+      draws:0,
+      points:0
+    };
+
+  }
+
+  return profiles[playerId];
+
+}
 
 wss.on("connection",(ws)=>{
 
