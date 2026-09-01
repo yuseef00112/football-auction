@@ -2325,9 +2325,6 @@ function finishGame(r){
 /* =========================================
    WebSocket - إدارة الاتصال واللاعبين
    ========================================= */
-const wss = new WebSocket.WebSocketServer({
-    server: server
-});
 
 wss.on("connection",(ws)=>{
 
@@ -4066,6 +4063,9 @@ setInterval(()=>{
 /* =========================================
    تشغيل السيرفر
    ========================================= */
+const wss = new WebSocket.WebSocketServer({
+  server
+});
 
 server.listen(PORT,()=>{
 
