@@ -3,6 +3,7 @@ fs=require("fs"),
 path=require("path"),
 https=require("https"),
 WebSocket=require("ws");
+const server = http.createServer();
 
 const PORT=process.env.PORT||3000;
 const rooms=new Map();
