@@ -2923,6 +2923,53 @@ wss.on("connection",(ws)=>{
       return;
     }
 
+     if (
+  data.type === "start"
+) {
+
+  const room =
+    rooms.get(
+      ws.roomCode
+    );
+
+  if (!room) {
+
+    send(ws, {
+      type: "error",
+      message: "الغرفة غير موجودة"
+    });
+
+    return;
+  }
+
+  if (
+    room.ownerId !== ws.playerId
+  ) {
+
+    send(ws, {
+      type: "error",
+      message: "صاحب الغرفة فقط يمكنه بدء المزاد"
+    });
+
+    return;
+  }
+
+  if (
+    room.players.size !== 2
+  ) {
+
+    send(ws, {
+      type: "error",
+      message: "يجب دخول لاعبين قبل بدء المزاد"
+    });
+
+    return;
+  }
+
+  startGame(room);
+
+  return;
+}
 
     /* =========================================
        المزايدة
