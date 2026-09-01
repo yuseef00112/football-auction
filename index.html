@@ -845,9 +845,17 @@
           <p>شارك الكود مع صاحبك</p>
           <div class="big" id="lobbyCode"></div>
           <div id="playersList" class="notice"></div>
-          <button id="startBtn" class="primary" onclick="startAuction()">
-            ابدأ المزاد
-          </button>
+         <button id="startBtn" class="primary" onclick="startAuction()">
+  ابدأ المزاد
+</button>
+
+<button
+  id="leaveBtn"
+  class="secondary"
+  onclick="confirmLeaveGame()"
+>
+  ارجع للقائمة الرئيسية
+</button>
         </div>
       </section>
       <section id="game" class="hidden">
@@ -2897,6 +2905,17 @@ if (!PROFILE_ID) {
         for (const x of ["home", "lobby", "game", "result"])
           document.getElementById(x).classList.toggle("hidden", x !== id);
       }
+      function confirmLeaveGame() {
+
+  const confirmed =
+    confirm("متأكد إنك عايز تخرج؟");
+
+  if (!confirmed) {
+    return;
+  }
+
+  goHome();
+}
       function goHome() {
         document.getElementById("roundOverlay").classList.add("hidden");
         document.getElementById("simulationOverlay").classList.add("hidden");
