@@ -3109,6 +3109,37 @@
   return;
 
 }
+        if (m.type === "roomJoined") {
+
+  console.log("ROOM JOINED:", m.room);
+
+  room = m.room;
+
+  show("lobby");
+
+  return;
+
+}
+        if (m.type === "roomUpdate") {
+
+  console.log("ROOM UPDATE:", m.room);
+
+  room = m.room;
+
+  return;
+
+}
+        if (m.type === "roomsList") {
+
+  console.log("ROOMS LIST:", m.rooms);
+
+  renderPublicRooms(
+    m.rooms || []
+  );
+
+  return;
+
+}
         if (m.type === "connected") {
           me = m.me;
           room = m.room;
@@ -3181,9 +3212,7 @@
             ws.close();
           } catch (e) {}
         }
-        if (m.type === "publicRooms") {
-          renderPublicRooms(m.rooms || []);
-        }
+        
         if (m.type === "leaderboard") {
           renderLeaderboard(m.players || []);
         }
