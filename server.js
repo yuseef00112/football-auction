@@ -4250,7 +4250,12 @@ wss.on("connection", (ws) => {
   }
 
   // لو اللاعب الثاني ضغط
-  r.players.delete(id);
+ ws.send(
+  JSON.stringify({
+    type: "leaveSuccess",
+  }),
+);
+        r.players.delete(id);
   r.clients.delete(ws);
   room = null;
 
