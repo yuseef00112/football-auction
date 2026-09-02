@@ -848,6 +848,9 @@
           <button id="startBtn" class="primary" onclick="startAuction()">
             ابدأ المزاد
           </button>
+          <button id="leaveRoomBtn" class="primary" onclick="leaveRoom()">
+  🏠 الرجوع للقائمة الرئيسية
+</button>
         </div>
       </section>
       <section id="game" class="hidden">
@@ -4791,6 +4794,9 @@ retired: false,
       function startAuction() {
         send({ type: "start" });
       }
+      function leaveRoom() {
+  send({ type: "leaveRoom" });
+}
      function showLineups() {
   const t = window.finalTeams;
 
