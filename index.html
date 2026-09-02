@@ -4325,13 +4325,13 @@ retired: false,
           .classList.add("hidden");
       }
 
-      function exitGameConfirmed() {
-        document
-          .getElementById("exitConfirmOverlay")
-          .classList.add("hidden");
+  function exitGameConfirmed() {
+  document
+    .getElementById("exitConfirmOverlay")
+    .classList.add("hidden");
 
-        goHome();
-      }
+  send({ type: "leaveRoom" });
+}
       function confirmOpponentLeft() {
         document.getElementById("opponentLeftOverlay").classList.add("hidden");
         goHome();
@@ -4457,6 +4457,19 @@ retired: false,
           document.getElementById("lobbyCode").textContent = room;
           show("lobby");
         }
+        if (m.type === "roomClosed") {
+  alert("تم إنهاء الغرفة بواسطة صاحب الغرفة");
+
+  room = null;
+  state = null;
+  isHost = false;
+
+  show("home");
+}
+
+if (m.type === "playerLeft") {
+  alert("اللاعب الآخر غادر الغرفة");
+}
         if (m.type === "state") {
           state = m.state;
           renderState();
