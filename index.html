@@ -4470,6 +4470,13 @@ retired: false,
 if (m.type === "playerLeft") {
   alert("اللاعب الآخر غادر الغرفة");
 }
+        if (m.type === "leaveSuccess") {
+  room = null;
+  state = null;
+  isHost = false;
+
+  goHome();
+}
         if (m.type === "state") {
           state = m.state;
           renderState();
