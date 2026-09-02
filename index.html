@@ -875,24 +875,39 @@
               class="row auctionButtons"
               style="justify-content: center; margin-top: 7px"
             >
-              <button
-                id="minusBid"
-                class="secondary"
-                onclick="changeBidAmount(-1)"
-              >
-                −</button
-              ><b id="bidAmount" class="pill">1</b
-              ><button
-                id="plusBid"
-                class="primary"
-                onclick="changeBidAmount(1)"
-              >
-                +</button
-              ><button id="bidBtn" class="primary" onclick="placeCustomBid()">
-                زايد بالسعر</button
-              ><button id="skipBtn" class="skip" onclick="skipAuction()">
-                تخطي المزايدة
-              </button>
+             <button
+  id="minusBid"
+  class="secondary"
+  onclick="changeBidAmount(-1)"
+>
+  −
+</button>
+
+<input
+  id="customBidInput"
+  type="number"
+  min="1"
+  value="1"
+  inputmode="numeric"
+/>
+
+<b id="bidAmount" class="pill">1</b>
+
+<button
+  id="plusBid"
+  class="primary"
+  onclick="changeBidAmount(1)"
+>
+  +
+</button>
+
+<button id="bidBtn" class="primary" onclick="placeCustomBid()">
+  زايد بالسعر
+</button>
+
+<button id="skipBtn" class="skip" onclick="skipAuction()">
+  تخطي المزايدة
+</button>
             </div>
             <div id="replacementBox" class="replacement hidden"></div>
             <p id="bidMsg" class="muted"></p>
@@ -4793,16 +4808,28 @@ if (m.type === "playerLeft") {
         return state?.highest ? Math.max(1, (Number(state?.bid) || 0) + 1) : 1;
       }
       function changeBidAmount(change) {
-        selectedBidAmount = Math.max(
-          getMinimumBid(),
-          selectedBidAmount + change,
-        );
-        document.getElementById("bidAmount").textContent = selectedBidAmount;
-      }
-      function placeCustomBid() {
-        selectedBidAmount = Math.max(getMinimumBid(), selectedBidAmount);
-        bid(selectedBidAmount);
-      }
+  selectedBidAmount = Math.max(
+    getMinimumBid(),
+    selectedBidAmount + change,
+  );
+
+  document.getElementById("bidAmount").textContent = selectedBidAmount;
+  document.getElementById("customBidInput").value = selectedBidAmount;
+}
+
+function placeCustomBid() {
+  const input = document.getElementById("customBidInput");
+
+  selectedBidAmount = Math.max(
+    getMinimumBid(),
+    Math.floor(Number(input.value) || getMinimumBid()),
+  );
+
+  input.value = selectedBidAmount;
+  document.getElementById("bidAmount").textContent = selectedBidAmount;
+
+  bid(selectedBidAmount);
+}
       function bid(amount) {
         if (!state || state.phase !== "auction") return;
         bidSound();
