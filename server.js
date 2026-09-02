@@ -4233,6 +4233,39 @@ wss.on("connection", (ws) => {
     } else if (room) {
       const r = rooms.get(room);
       if (!r) return;
+      if (m.type === "leaveRoom") {
+  const hostId = [...r.players.keys()][0];
+
+  // لو صاحب الغرفة ضغط
+  if (id === hostId) {
+    broadcast(r, {
+      type: "roomClosed",
+    });
+
+    clearTimeout(r.timer);
+    rooms.delete(room);
+    room = null;
+    broadcastRooms();
+    return;
+  }
+
+  // لو اللاعب الثاني ضغط
+  r.players.delete(id);
+  r.clients.delete(ws);
+  room = null;
+
+  broadcast(r, {
+    type: "playerLeft",
+  });
+
+  broadcast(r, {
+    type: "state",
+    state: publicState(r),
+  });
+
+  broadcastRooms();
+  return;
+}
 
       if (
         m.type === "start" &&
