@@ -3445,8 +3445,19 @@ function pickForPosition(r, pos) {
   return available[available.length - 1];
 }
 function startRound(r) {
-  const pos = (r.roundPositions || roundPositions)[r.round - 1],
-    p = pickForPosition(r, pos);
+ const pos = (r.roundPositions || roundPositions)[r.round - 1];
+const p = pickForPosition(r, pos);
+
+console.log(
+  "ROUND:",
+  r.round,
+  "REQUIRED POSITION:",
+  pos,
+  "SELECTED:",
+  p?.name,
+  "PLAYER POSITION:",
+  p?.position,
+);
   if (!p) {
     finishGame(r);
     return;
