@@ -4616,6 +4616,10 @@ if (m.type === "playerLeft") {
             rb.classList.add("hidden");
             rs.textContent = "في انتظار أن يطلب اللاعب الأول مباراة أخرى.";
           }
+
+          if (window.AndroidAd && window.AndroidAd.showAd) {
+  window.AndroidAd.showAd();
+}
         }
       }
       function playerMiniHTML(p, label, extra) {
